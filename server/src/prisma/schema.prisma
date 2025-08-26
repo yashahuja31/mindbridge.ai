@@ -1,0 +1,190 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  role      Role     @default(CANDIDATE)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  profile     Profile?
+  assessments Assessment[]
+  matches     Match[]
+
+  @@map("users")
+}
+
+model Profile {
+  id          String  @id @default(cuid())
+  userId      String  @unique
+  firstName   String
+  lastName    String
+  phone       String?
+  bio         String?
+  avatar      String?
+  linkedinUrl String?
+  resumeUrl   String?
+
+  // Career preferences
+  desiredRoles String[]
+  industries   String[]
+  workStyle    String? // remote, hybrid, onsite
+  salaryMin    Int?
+  salaryMax    Int?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("profiles")
+}
+
+model Assessment {
+  id          String           @id @default(cuid())
+  userId      String
+  type        AssessmentType   @default(BIG_FIVE)
+  status      AssessmentStatus @default(IN_PROGRESS)
+  startedAt   DateTime         @default(now())
+  completedAt DateTime?
+  results     Json?
+
+  // Relations
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  responses Response[]
+
+  @@map("assessments")
+}
+
+model Question {
+  id       String       @id @default(cuid())
+  category String // openness, conscientiousness, extraversion, agreeableness, neuroticism
+  text     String
+  type     QuestionType @default(LIKERT_5)
+  order    Int
+  reverse  Boolean      @default(false) // for reverse-scored questions
+
+  // Relations
+  responses Response[]
+
+  @@map("questions")
+}
+
+model Response {
+  id           String @id @default(cuid())
+  assessmentId String
+  questionId   String
+  value        Int // 1-5 for Likert scale
+  responseTime Int? // milliseconds taken to respond
+
+  // Relations
+  assessment Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  question   Question   @relation(fields: [questionId], references: [id])
+
+  @@unique([assessmentId, questionId])
+  @@map("responses")
+}
+
+model Job {
+  id             String   @id @default(cuid())
+  companyId      String
+  title          String
+  description    String
+  requirements   Json
+  salaryMin      Int?
+  salaryMax      Int?
+  workStyle      String? // remote, hybrid, onsite
+  status         JobStatus @default(ACTIVE)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  company Company @relation(fields: [companyId], references: [id])
+  matches Match[]
+
+  @@map("jobs")
+}
+
+model Company {
+  id          String @id @default(cuid())
+  name        String
+  industry    String
+  size        String // startup, small, medium, large, enterprise
+  description String?
+  website     String?
+  logoUrl     String?
+
+  // Culture attributes for matching
+  culture Json?
+
+  // Relations
+  jobs Job[]
+
+  @@map("companies")
+}
+
+model Match {
+  id          String    @id @default(cuid())
+  userId      String
+  jobId       String
+  score       Float // 0.0 to 1.0
+  explanation Json // why this match was made
+  status      MatchStatus @default(SUGGESTED)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id])
+  job  Job  @relation(fields: [jobId], references: [id])
+
+  @@unique([userId, jobId])
+  @@map("matches")
+}
+
+// Enums
+enum Role {
+  CANDIDATE
+  RECRUITER
+  ADMIN
+}
+
+enum AssessmentType {
+  BIG_FIVE
+  SKILLS
+  COGNITIVE
+}
+
+enum AssessmentStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum QuestionType {
+  LIKERT_5
+  YES_NO
+  MULTIPLE_CHOICE
+}
+
+enum JobStatus {
+  DRAFT
+  ACTIVE
+  CLOSED
+}
+
+enum MatchStatus {
+  SUGGESTED
+  VIEWED
+  INTERESTED
+  APPLIED
+  REJECTED
+}
