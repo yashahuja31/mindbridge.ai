@@ -4,6 +4,10 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
 
+// Import routes
+import authRoutes from './routes/auth';
+import assessmentRoutes from './routes/assessment';
+
 dotenv.config();
 
 const app = express();
@@ -11,7 +15,10 @@ const PORT = process.env.PORT || 3001;
 
 // Middleware
 app.use(helmet());
-app.use(cors());
+app.use(cors({
+  origin: process.env.CLIENT_URL || 'http://localhost:5173',
+  credentials: true,
+}));
 app.use(morgan('combined'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
@@ -21,15 +28,29 @@ app.get('/health', (req, res) => {
   res.json({ 
     status: 'OK', 
     message: 'MindBridge AI API is running',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    version: '1.0.0'
   });
 });
+
+// API routes
+app.use('/api/auth', authRoutes);
+app.use('/api/assessment', assessmentRoutes);
 
 // Basic route
 app.get('/api', (req, res) => {
   res.json({ 
     message: 'Welcome to MindBridge AI API',
-    version: '1.0.0'
+    version: '1.0.0',
+    endpoints: [
+      'POST /api/auth/register',
+      'POST /api/auth/login',
+      'GET /api/auth/profile',
+      'GET /api/assessment/questions',
+      'POST /api/assessment/start',
+      'POST /api/assessment/response',
+      'POST /api/assessment/:id/complete'
+    ]
   });
 });
 
@@ -47,6 +68,7 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 app.listen(PORT, () => {
   console.log(`🚀 MindBridge AI server running on port ${PORT}`);
   console.log(`📋 Health check: http://localhost:${PORT}/health`);
+  console.log(`📚 API docs: http://localhost:${PORT}/api`);
 });
 
 export default app;
