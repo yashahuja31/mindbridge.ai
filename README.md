@@ -9,7 +9,7 @@ This project is in early development. Follow the setup guide in `/docs` to get s
 ## 📋 Current Status
 
 - [x] Project setup and structure
-- [ ] Backend API development
+- [x] Backend API development
 - [ ] Frontend application
 - [ ] Assessment system
 - [ ] Matching algorithm
