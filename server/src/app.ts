@@ -4,9 +4,9 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
 
-// Import routes
+//importing routes
 import authRoutes from './routes/auth';
-import assessmentRoutes from './routes/assessment';
+import assessmentRoutes from './routes/assesment';
 
 dotenv.config();
 
