@@ -21,7 +21,8 @@ export const register = async (req: Request, res: Response) => {
   try {
     const { error, value } = registerSchema.validate(req.body);
     if (error) {
-      return res.status(400).json({ error: error.details[0].message });
+      const msg = error.details?.[0]?.message ?? error.message;
+      return res.status(400).json({ error: msg });
     }
 
     const { email, password, firstName, lastName } = value;
@@ -76,7 +77,8 @@ export const login = async (req: Request, res: Response) => {
   try {
     const { error, value } = loginSchema.validate(req.body);
     if (error) {
-      return res.status(400).json({ error: error.details[0].message });
+      const msg = error.details?.[0]?.message ?? error.message;
+      return res.status(400).json({ error: msg });
     }
 
     const { email, password } = value;
