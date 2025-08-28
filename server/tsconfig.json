@@ -6,10 +6,10 @@
     
     // Environment Settings - Node.js Backend
     "target": "ES2020",
-    "module": "commonjs",  // Changed from ESNext to commonjs for Node.js
-    "moduleResolution": "node",  // Changed from bundler to node
+    "module": "commonjs", 
+    "moduleResolution": "node",  
     "lib": ["ES2020"],
-    "types": ["node"],  // Added node types
+    "types": ["node"],  
     
     // Other Outputs
     "sourceMap": true,
