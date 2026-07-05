@@ -1,0 +1,31 @@
+# --- MindBridge.ai core dependencies ---
+# Pin ranges (not exact) so first install resolves cleanly on Python 3.12.
+
+# Data & schemas
+pydantic>=2.6,<3
+pydantic-settings>=2.2,<3
+pandas>=2.2,<3
+numpy>=1.26,<3
+python-dotenv>=1.0
+
+# Matching — semantic embeddings + classic ML
+scikit-learn>=1.4          # TF-IDF fallback embedder + cosine + utilities
+sentence-transformers>=2.6 # primary embedder (pulls in torch; large first-run download)
+xgboost>=2.0               # stage-2 re-ranker (trained model, optional at runtime)
+catboost>=1.2              # alternative re-ranker
+
+# Resume parsing
+pdfplumber>=0.11           # PDF -> text
+docx2txt>=0.8              # quick .docx -> text
+python-docx>=1.1           # structured .docx access
+
+# Data sources
+requests>=2.31             # official job APIs (Adzuna, etc.)
+
+# CLI / UX
+typer>=0.12
+rich>=13.7
+
+# --- Dev / demo (install with: pip install -r requirements.txt) ---
+pytest>=8.1
+jupyter>=1.0
