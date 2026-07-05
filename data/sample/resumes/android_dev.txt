@@ -1,0 +1,21 @@
+HANA KIM
+Android Developer — Berlin, DE
+
+SUMMARY
+Android developer with 4 years building native apps used by millions. Kotlin-first, with a strong
+focus on performance, clean architecture, and delightful mobile UX.
+
+EXPERIENCE
+Android Developer, MobiTech (2021 - present)
+- Built and shipped features for a consumer Android app with 5M+ downloads.
+- Migrated legacy Java modules to Kotlin and adopted MVVM architecture.
+- Improved app startup time and reduced crash rate to under 0.1%.
+
+Junior Android Developer, AppForge (2020 - 2021)
+- Developed Android features in Java and Kotlin under senior mentorship.
+
+SKILLS
+Kotlin, Android, Java, MVVM, Jetpack, Git, Gradle
+
+EDUCATION
+BSc Computer Science, TU Berlin

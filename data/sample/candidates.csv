@@ -1,0 +1,9 @@
+file,id,name,headline,location,years_experience,desired_salary
+backend_engineer.txt,c-001,Ravi Patel,Senior Backend Engineer,"London, UK",7,85000
+ml_engineer.txt,c-002,Maya Chen,Machine Learning Engineer,"London, UK",5,95000
+frontend_dev.txt,c-003,Sofia Rossi,Frontend Engineer,Remote,4,70000
+data_scientist.txt,c-004,Omar Haddad,Data Scientist,"Manchester, UK",5,75000
+devops_engineer.txt,c-005,Lars Nielsen,DevOps Engineer,Remote,6,80000
+fullstack_dev.txt,c-006,Grace Okafor,Full Stack Developer,"London, UK",3,65000
+product_manager.txt,c-007,Daniel Wright,Product Manager,"London, UK",6,85000
+android_dev.txt,c-008,Hana Kim,Android Developer,"Berlin, DE",4,72000

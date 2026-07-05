@@ -1,0 +1,22 @@
+MAYA CHEN
+Machine Learning Engineer — London, UK
+
+SUMMARY
+ML engineer with 5 years of experience taking models from notebook to production. Strong PyTorch
+skills with a focus on NLP, plus the software engineering to deploy models reliably on AWS.
+
+EXPERIENCE
+Machine Learning Engineer, NLPWorks (2020 - present)
+- Trained and deployed transformer-based NLP models (classification, NER) with PyTorch.
+- Built serving infrastructure on AWS with Docker; monitored drift and latency in production.
+- Collaborated with data engineers on feature pipelines feeding the models.
+
+Data Scientist, InsightAI (2018 - 2020)
+- Built machine learning models with scikit-learn and pandas for churn prediction.
+- Ran A/B experiments and communicated results to stakeholders.
+
+SKILLS
+Python, PyTorch, machine learning, deep learning, NLP, scikit-learn, pandas, AWS, Docker, SQL
+
+EDUCATION
+MSc Machine Learning, UCL

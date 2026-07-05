@@ -1,0 +1,23 @@
+RAVI PATEL
+Senior Backend Engineer — London, UK
+
+SUMMARY
+Backend engineer with 7 years of experience designing and scaling REST APIs and microservices.
+Deep expertise in Python and Django, with production systems backed by PostgreSQL and deployed on
+AWS using Docker. Comfortable owning services end to end, from system design to on-call.
+
+EXPERIENCE
+Backend Engineer, FinScale (2019 - present)
+- Led the redesign of a monolith into Python/Django microservices serving 2M requests/day.
+- Optimized PostgreSQL queries and caching with Redis, cutting p95 latency by 40%.
+- Built CI/CD pipelines and containerized services with Docker on AWS.
+
+Software Engineer, DataWorks (2017 - 2019)
+- Developed REST APIs in Django and Flask for internal analytics tools.
+- Wrote automated tests and improved code coverage across the backend.
+
+SKILLS
+Python, Django, Flask, PostgreSQL, REST, microservices, AWS, Docker, Redis, Git
+
+EDUCATION
+BSc Computer Science, University of Bristol

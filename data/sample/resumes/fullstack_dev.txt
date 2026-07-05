@@ -1,0 +1,22 @@
+GRACE OKAFOR
+Full Stack Developer — London, UK
+
+SUMMARY
+Full stack developer with 3 years shipping features end to end at startups. React on the front,
+Node.js and MongoDB on the back. Pragmatic, fast, and comfortable owning a feature from idea to
+production.
+
+EXPERIENCE
+Full Stack Developer, LaunchPad (2021 - present)
+- Built customer-facing features with React and TypeScript, backed by Node.js/Express APIs.
+- Modelled data in MongoDB and integrated third-party payment and auth providers.
+- Shipped weekly in a small, fast-moving team.
+
+Web Developer, FreelanceProjects (2020 - 2021)
+- Delivered full stack web apps for small business clients.
+
+SKILLS
+JavaScript, TypeScript, React, Node.js, Express, MongoDB, HTML, CSS, Git
+
+EDUCATION
+BSc Computer Science, University of Nottingham

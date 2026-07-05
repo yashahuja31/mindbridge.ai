@@ -1,0 +1,21 @@
+OMAR HADDAD
+Data Scientist — Manchester, UK
+
+SUMMARY
+Data scientist with 5 years turning data into decisions. Strong statistics foundation, fluent in
+Python (pandas, scikit-learn) and SQL, with experience running experiments and shipping models.
+
+EXPERIENCE
+Data Scientist, RetailIQ (2020 - present)
+- Built demand-forecasting and churn models with scikit-learn and pandas.
+- Designed and analysed A/B tests; presented findings to non-technical stakeholders.
+- Wrote complex SQL against the data warehouse for feature extraction.
+
+Analyst, MarketMetrics (2019 - 2020)
+- Automated reporting with Python and built dashboards in Tableau.
+
+SKILLS
+Python, pandas, scikit-learn, statistics, SQL, machine learning, Tableau, Git
+
+EDUCATION
+MSc Statistics, University of Manchester

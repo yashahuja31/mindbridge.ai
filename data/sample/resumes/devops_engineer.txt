@@ -1,0 +1,21 @@
+LARS NIELSEN
+DevOps Engineer — Remote
+
+SUMMARY
+DevOps engineer with 6 years automating cloud infrastructure. Kubernetes and Terraform on AWS,
+CI/CD pipelines, and a reliability-first mindset.
+
+EXPERIENCE
+DevOps Engineer, ScaleOps (2019 - present)
+- Ran production Kubernetes clusters on AWS; managed infrastructure as code with Terraform.
+- Built CI/CD pipelines (Jenkins, GitHub Actions) reducing deploy time from hours to minutes.
+- Hardened Linux systems and set up observability with Prometheus and Grafana.
+
+Systems Administrator, HostPlus (2017 - 2019)
+- Managed Linux servers and automated provisioning with Ansible.
+
+SKILLS
+AWS, Kubernetes, Docker, Terraform, CI/CD, Jenkins, Linux, Git, Bash
+
+EDUCATION
+BSc Computer Networks, Aalborg University

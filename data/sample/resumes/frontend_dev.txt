@@ -1,0 +1,21 @@
+SOFIA ROSSI
+Frontend Engineer — Remote
+
+SUMMARY
+Frontend engineer with 4 years building fast, accessible web interfaces in React and TypeScript.
+Strong eye for design systems, performance, and clean component architecture.
+
+EXPERIENCE
+Frontend Engineer, BrightUI (2021 - present)
+- Built and maintained a React + TypeScript component library used across 6 products.
+- Improved Lighthouse performance scores and drove accessibility (WCAG) compliance.
+- Managed application state with Redux and modern hooks.
+
+Junior Web Developer, WebStudio (2020 - 2021)
+- Developed responsive marketing sites with HTML, CSS, and JavaScript.
+
+SKILLS
+JavaScript, TypeScript, React, Redux, HTML, CSS, Tailwind, Git
+
+EDUCATION
+BSc Software Engineering, University of Leeds
