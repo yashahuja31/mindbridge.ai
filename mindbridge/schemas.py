@@ -18,24 +18,32 @@ class JobPosting(BaseModel):
     title: str
     company: str = ""
     description: str = ""
-    skills: list[str] = Field(default_factory=list)
+    skills: list[str] = Field(default_factory=list)  # required / must-have skills
+    preferred_skills: list[str] = Field(default_factory=list)  # nice-to-have skills
     min_experience: float = 0.0  # years
     max_experience: Optional[float] = None  # years; None = no ceiling
     location: str = ""
     remote: bool = False
     salary_min: Optional[float] = None
     salary_max: Optional[float] = None
-    source: str = "unknown"  # sample | api | scraper | ...
+    source: str = "unknown"  # sample | api | scraper | demo | user | ...
     raw_text: str = ""  # original blob, kept for embedding + debugging
 
-    @field_validator("skills", mode="before")
+    @field_validator("skills", "preferred_skills", mode="before")
     @classmethod
     def _coerce_skills(cls, v: Any) -> list[str]:
         return _to_skill_list(v)
 
     def matchable_text(self) -> str:
         """The text stage-1 retrieval embeds for this job."""
-        parts = [self.title, self.company, self.description, " ".join(self.skills), self.raw_text]
+        parts = [
+            self.title,
+            self.company,
+            self.description,
+            " ".join(self.skills),
+            " ".join(self.preferred_skills),
+            self.raw_text,
+        ]
         return "\n".join(p for p in parts if p).strip()
 
 

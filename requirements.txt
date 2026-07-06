@@ -4,15 +4,16 @@
 # Data & schemas
 pydantic>=2.6,<3
 pydantic-settings>=2.2,<3
-pandas>=2.2,<3
+pandas>=2.2,<4             # 3.x is supported; <4 keeps us off a future breaking major
 numpy>=1.26,<3
+pyarrow>=17               # parquet corpus cache (data/processed/*.parquet)
 python-dotenv>=1.0
 
 # Matching — semantic embeddings + classic ML
 scikit-learn>=1.4          # TF-IDF fallback embedder + cosine + utilities
-sentence-transformers>=2.6 # primary embedder (pulls in torch; large first-run download)
 xgboost>=2.0               # stage-2 re-ranker (trained model, optional at runtime)
-catboost>=1.2              # alternative re-ranker
+# NOTE: sentence-transformers (torch) + catboost are OPTIONAL and heavy — see
+# requirements-optional.txt. The engine runs fine on the TF-IDF fallback without them.
 
 # Resume parsing
 pdfplumber>=0.11           # PDF -> text
@@ -22,10 +23,19 @@ python-docx>=1.1           # structured .docx access
 # Data sources
 requests>=2.31             # official job APIs (Adzuna, etc.)
 
+# Web backend (M2) — FastAPI + persistence + auth
+fastapi>=0.116,<1
+uvicorn>=0.35,<1
+sqlalchemy>=2.0,<3         # SQLite persistence (users, resumes, jobs, match history)
+python-multipart>=0.0.9    # multipart resume/job uploads
+PyJWT>=2.9,<3              # access tokens (HS256)
+bcrypt>=4.1,<5             # password hashing (used directly; no passlib)
+
 # CLI / UX
 typer>=0.12
 rich>=13.7
 
 # --- Dev / demo (install with: pip install -r requirements.txt) ---
 pytest>=8.1
+httpx>=0.27                # fastapi TestClient
 jupyter>=1.0

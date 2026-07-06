@@ -20,20 +20,12 @@ MODEL_OUT = MODELS_DIR / "reranker.json"
 FEATURE_COLUMNS = [*FEATURE_NAMES, "semantic_score"]
 
 
-def train(save: bool = True) -> dict[str, float]:
-    import numpy as np
+def _fit_and_report(table, save: bool) -> dict[str, float]:
+    """Shared training core: fit XGBoost on a prebuilt table, report MAE, optionally save."""
     import xgboost as xgb
     from sklearn.metrics import mean_absolute_error
     from sklearn.model_selection import train_test_split
 
-    candidates = load_candidates()
-    jobs = load_jobs(sources=["sample"])
-    if not candidates or not jobs:
-        raise RuntimeError(
-            "No sample data found. Ensure data/sample/jobs.csv and data/sample/resumes/*.txt exist."
-        )
-
-    table = build_training_table(candidates, jobs)
     X = table[FEATURE_COLUMNS].to_numpy(dtype="float32")
     y = table["label"].to_numpy(dtype="float32")
 
@@ -66,6 +58,54 @@ def train(save: bool = True) -> dict[str, float]:
         metrics["saved_to"] = str(MODEL_OUT)  # type: ignore[assignment]
 
     return metrics
+
+
+def train(save: bool = True) -> dict[str, float]:
+    candidates = load_candidates(sources=["sample"])
+    jobs = load_jobs(sources=["sample"])
+    if not candidates or not jobs:
+        raise RuntimeError(
+            "No sample data found. Ensure data/sample/jobs.csv and data/sample/resumes/*.txt exist."
+        )
+
+    table = build_training_table(candidates, jobs)
+    return _fit_and_report(table, save)
+
+
+def train_on_corpus(
+    save: bool = True, limit: int | None = None, pairs_per_candidate: int = 20
+) -> dict[str, float]:
+    """Train on the 10k demo corpus instead of the tiny sample set.
+
+    All-pairs over 10k x 10k is ~100M rows — far too many. We instead pair each candidate with a
+    bounded random-but-deterministic slice of jobs (`pairs_per_candidate`), keeping the table big
+    enough for honest metrics while staying tractable. Labels are still the heuristic's own score
+    (proxy labels; see make_labels), so this distills the *rebalanced* demo weights, not real
+    outcomes — the M5 payoff still needs true hire/satisfaction data.
+    """
+    from mindbridge.ingestion.corpus_build import load_cached_candidates, load_cached_jobs
+
+    candidates = load_cached_candidates(limit=limit)
+    jobs = load_cached_jobs(limit=limit)
+    if not candidates or not jobs:
+        raise RuntimeError(
+            "Demo corpus is empty. Run `python -m mindbridge.cli build-corpus` first."
+        )
+
+    # Deterministic bounded pairing: candidate i sees a contiguous window of jobs starting at a
+    # stride-offset, so every candidate contributes rows without materializing the full cross join.
+    n_jobs = len(jobs)
+    window = min(pairs_per_candidate, n_jobs)
+    subtables = []
+    for i, cand in enumerate(candidates):
+        start = (i * window) % n_jobs
+        picked = [jobs[(start + j) % n_jobs] for j in range(window)]
+        subtables.append(build_training_table([cand], picked))
+
+    import pandas as pd
+
+    table = pd.concat(subtables, ignore_index=True)
+    return _fit_and_report(table, save)
 
 
 if __name__ == "__main__":

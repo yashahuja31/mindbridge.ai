@@ -155,13 +155,39 @@ def ingest(
     console.print(table)
 
 
-@app.command("train")
-def train():
-    """Train the XGBoost reranker on sample data and save models/reranker.json."""
-    from mindbridge.training.train_reranker import train as _train
+@app.command("build-corpus")
+def build_corpus_cmd(
+    force: bool = typer.Option(False, "--force", help="Rebuild even if the cache exists"),
+    limit: Optional[int] = typer.Option(None, help="Only parse the first N docs per side (dev)"),
+):
+    """Parse the two demo zips into the processed parquet/JSONL cache (data/processed/)."""
+    from mindbridge.ingestion.corpus_build import build_corpus
 
-    console.print("[dim]Training reranker (weak labels at cold start)...[/dim]")
-    metrics = _train(save=True)
+    console.print("[dim]Building demo corpus from zips (reads straight from the archives)...[/dim]")
+    stats = build_corpus(force=force, limit=limit)
+    action = "rebuilt" if stats.get("rebuilt") else "loaded from cache"
+    console.print(
+        f"[green]Corpus {action}:[/green] {stats['jobs']} jobs, {stats['candidates']} candidates."
+    )
+
+
+@app.command("train")
+def train(
+    scaled: bool = typer.Option(
+        False, "--scaled", help="Train on the full demo corpus (honest metrics) vs. sample data"
+    ),
+):
+    """Train the XGBoost reranker and save models/reranker.json (+ reranker_metrics.json)."""
+    if scaled:
+        from mindbridge.training.train_reranker import train_on_corpus
+
+        console.print("[dim]Training reranker on the 10k demo corpus (proxy labels)...[/dim]")
+        metrics = train_on_corpus(save=True)
+    else:
+        from mindbridge.training.train_reranker import train as _train
+
+        console.print("[dim]Training reranker (weak labels at cold start)...[/dim]")
+        metrics = _train(save=True)
     for key, value in metrics.items():
         console.print(f"  {key}: {value}")
     console.print("[green]Done. The engine will now use the trained model automatically.[/green]")

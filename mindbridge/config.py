@@ -14,7 +14,13 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = PROJECT_ROOT / "data"
 SAMPLE_DIR = DATA_DIR / "sample"
+PROCESSED_DIR = DATA_DIR / "processed"  # parsed corpus cache (parquet/jsonl), gitignored
 MODELS_DIR = PROJECT_ROOT / "models"
+
+# The two demo corpora (10k each) the user dropped in the repo root. Read straight from the
+# zip — we never extract 20k loose files.
+RESUMES_ZIP = PROJECT_ROOT / "demo_resumes_10000.zip"
+JOBS_ZIP = PROJECT_ROOT / "demo_job_descriptions_10000.zip"
 
 
 class Settings(BaseSettings):
@@ -45,14 +51,28 @@ class Settings(BaseSettings):
     # --- Matching weights (stage-2 heuristic reranker) ---
     # These sum-weight the structured features + semantic score. Tune freely; they must be
     # non-negative. `train_reranker.py` replaces this hand-tuned blend with a learned model.
-    w_semantic: float = 0.45
-    w_skills: float = 0.30
-    w_experience: float = 0.12
-    w_location: float = 0.08
-    w_salary: float = 0.05
+    # Rebalanced for the demo corpus: role + skills dominate because the corpus carries no
+    # experience or salary signal, and role is the strongest real signal in the data.
+    w_semantic: float = 0.35
+    w_skills: float = 0.25
+    w_role: float = 0.22
+    w_experience: float = 0.08
+    w_location: float = 0.06
+    w_salary: float = 0.04
 
     # How many candidates stage-1 retrieval passes to stage-2 before final top-k.
     retrieve_multiplier: int = 5
+
+    # --- Web backend (M2) ---
+    # Override the secret in production via MINDBRIDGE_SECRET_KEY / .env.
+    secret_key: str = "dev-insecure-change-me-in-production"
+    access_token_expire_minutes: int = 1440  # 24h
+    database_url: str = f"sqlite:///{(DATA_DIR / 'mindbridge.db').as_posix()}"
+    cors_origins: list[str] = ["http://localhost:5173", "http://127.0.0.1:5173"]
+
+    # Cap how many corpus docs to load (per side). None = all 10k. Handy for dev/CI:
+    # set MINDBRIDGE_CORPUS_LIMIT=200 for a fast-starting server / test suite.
+    corpus_limit: int | None = None
 
 
 def _load() -> Settings:
@@ -64,6 +84,13 @@ def _load() -> Settings:
         s.enable_scraper = os.getenv("MINDBRIDGE_ENABLE_SCRAPER", "0") in ("1", "true", "True")
     if os.getenv("MINDBRIDGE_EMBED_MODEL"):
         s.embed_model = os.getenv("MINDBRIDGE_EMBED_MODEL", s.embed_model)
+    if os.getenv("MINDBRIDGE_SECRET_KEY"):
+        s.secret_key = os.getenv("MINDBRIDGE_SECRET_KEY", s.secret_key)
+    if os.getenv("MINDBRIDGE_CORPUS_LIMIT"):
+        try:
+            s.corpus_limit = int(os.environ["MINDBRIDGE_CORPUS_LIMIT"])
+        except ValueError:
+            pass
     return s
 
 

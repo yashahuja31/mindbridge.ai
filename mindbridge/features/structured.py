@@ -11,8 +11,21 @@ from dataclasses import asdict, dataclass, field
 
 from mindbridge.schemas import CandidateProfile, JobPosting
 
-# Order matters: this is the exact feature-vector layout the trained model expects.
-FEATURE_NAMES = ["skill_coverage", "skill_overlap", "experience_match", "location_match", "salary_fit"]
+# `taxonomy` is imported lazily inside compute_structured_features to avoid a circular import
+# (features.structured <- matching.reranker <- matching package __init__). After the first call it's
+# resolved from sys.modules, so the hot path pays only a dict lookup.
+
+# Order matters: this is the exact feature-vector layout the trained model expects. `role_match`
+# is APPENDED (not inserted) so the layout stays backward-compatible in position for the first five
+# features; any add/reorder here must be matched by a model retrain (see CLAUDE.md).
+FEATURE_NAMES = [
+    "skill_coverage",
+    "skill_overlap",
+    "experience_match",
+    "location_match",
+    "salary_fit",
+    "role_match",
+]
 
 
 @dataclass
@@ -22,6 +35,7 @@ class StructuredFeatures:
     experience_match: float = 0.0  # how well candidate years fit the job's range
     location_match: float = 0.0  # same location or remote-compatible
     salary_fit: float = 0.0  # candidate's desired salary within the job's band
+    role_match: float = 0.5  # role/title compatibility from the taxonomy (neutral default)
     # Extras used only for human-readable reasons (not fed to the model):
     matched_skills: list[str] = field(default_factory=list)
     missing_skills: list[str] = field(default_factory=list)
@@ -76,6 +90,8 @@ def _salary_fit(desired: float | None, job_min: float | None, job_max: float | N
 
 
 def compute_structured_features(cand: CandidateProfile, job: JobPosting) -> StructuredFeatures:
+    from mindbridge.matching import taxonomy  # lazy: see import note at top of module
+
     cand_skills = set(cand.skills)
     job_skills = set(job.skills)
 
@@ -92,6 +108,7 @@ def compute_structured_features(cand: CandidateProfile, job: JobPosting) -> Stru
         experience_match=_experience_match(cand.years_experience, job.min_experience, job.max_experience),
         location_match=_location_match(cand, job),
         salary_fit=_salary_fit(cand.desired_salary, job.salary_min, job.salary_max),
+        role_match=taxonomy.role_match(cand.headline, job.title),
         matched_skills=matched,
         missing_skills=missing,
     )

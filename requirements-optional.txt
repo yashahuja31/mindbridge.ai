@@ -1,0 +1,8 @@
+# --- MindBridge.ai OPTIONAL dependencies ---
+# Heavy extras. The engine runs fully without these on the TF-IDF fallback embedder
+# and the XGBoost reranker. Install only if you want transformer-quality embeddings
+# or the CatBoost reranker:  pip install -r requirements-optional.txt
+
+sentence-transformers>=2.6   # transformer embedder (pulls in torch; large download).
+                             # Enable via MINDBRIDGE_EMBED_MODEL / get_embedder("sentence-transformers").
+catboost>=1.2                # alternative stage-2 re-ranker

@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Optional
 
 from mindbridge.config import SAMPLE_DIR
-from mindbridge.ingestion.base import JobSource, ResumeSource
+from mindbridge.ingestion.base import JobSource, ResumeSource, text_filter
 from mindbridge.parsing.resume_parser import parse_resume_file
 from mindbridge.parsing.text_clean import extract_skills, guess_years_experience
 from mindbridge.schemas import CandidateProfile, JobPosting
@@ -58,7 +58,7 @@ class SampleJobSource(JobSource):
                     raw_text=row.get("description", ""),
                 )
                 jobs.append(job)
-        jobs = _text_filter(jobs, query, key=lambda j: f"{j.title} {j.description} {' '.join(j.skills)}")
+        jobs = text_filter(jobs, query, key=lambda j: f"{j.title} {j.description} {' '.join(j.skills)}")
         return jobs[:limit]
 
 
@@ -101,15 +101,7 @@ class SampleResumeSource(ResumeSource):
                     source=self.name,
                 )
             )
-        candidates = _text_filter(
+        candidates = text_filter(
             candidates, query, key=lambda c: f"{c.headline} {c.resume_text} {' '.join(c.skills)}"
         )
         return candidates[:limit]
-
-
-def _text_filter(items, query, key):
-    """Cheap case-insensitive substring filter used by the offline sample source."""
-    q = (query or "").strip().lower()
-    if not q:
-        return items
-    return [it for it in items if q in key(it).lower()]

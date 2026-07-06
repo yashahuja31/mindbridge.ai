@@ -39,6 +39,12 @@ class RerankResult:
 def _build_reasons(sem: float, feats: StructuredFeatures) -> list[str]:
     """Turn scores into plain-English 'why this match' bullets, best signals first."""
     reasons: list[str] = []
+    if feats.role_match >= 0.99:
+        reasons.append("Role matches the target exactly")
+    elif feats.role_match >= 0.6:
+        reasons.append("Role is closely related to the target")
+    elif feats.role_match <= 0.45:
+        reasons.append("Role differs from the target")
     if feats.matched_skills:
         shown = ", ".join(feats.matched_skills[:6])
         reasons.append(f"Shares {len(feats.matched_skills)} key skill(s): {shown}")
@@ -70,11 +76,14 @@ class HeuristicReranker:
         blended = (
             w.w_semantic * semantic_score
             + w.w_skills * (0.5 * feats.skill_coverage + 0.5 * feats.skill_overlap)
+            + w.w_role * feats.role_match
             + w.w_experience * feats.experience_match
             + w.w_location * feats.location_match
             + w.w_salary * feats.salary_fit
         )
-        total_w = w.w_semantic + w.w_skills + w.w_experience + w.w_location + w.w_salary
+        total_w = (
+            w.w_semantic + w.w_skills + w.w_role + w.w_experience + w.w_location + w.w_salary
+        )
         blended = blended / total_w if total_w else blended
 
         breakdown = feats.as_dict()
