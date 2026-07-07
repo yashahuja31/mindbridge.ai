@@ -171,6 +171,20 @@ def build_corpus_cmd(
     )
 
 
+@app.command("serve")
+def serve(
+    host: str = typer.Option("127.0.0.1", help="Bind host"),
+    port: int = typer.Option(8000, help="Bind port"),
+    reload: bool = typer.Option(False, "--reload", help="Auto-reload on code changes (dev)"),
+):
+    """Run the M2 FastAPI backend (uvicorn). Open http://host:port/docs for the API explorer."""
+    import uvicorn
+
+    console.print(f"[green]MindBridge API[/green] on http://{host}:{port}  (docs at /docs)")
+    # Pass the import string (not the app object) so --reload can re-import on change.
+    uvicorn.run("mindbridge.web.app:app", host=host, port=port, reload=reload)
+
+
 @app.command("train")
 def train(
     scaled: bool = typer.Option(

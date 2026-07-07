@@ -7,8 +7,10 @@ The long-term goal is to match on more than keywords — role fit, company norms
 person is likely to actually be happy in the role — so companies get people who stay, and people
 get jobs they don't burn out of.
 
-> **Milestone 1 (this repo, right now): the matching engine core.** Pure Python, no web UI yet.
-> The FastAPI backend and React hirer/hiree interfaces wrap this engine in later milestones.
+> **Milestones 1–2 are done.** The matching engine core (M1) is now wrapped by a **FastAPI
+> backend** (M2) that serves both matching directions over HTTP, with accounts, resume upload,
+> and saved match history. React hirer/hiree interfaces (M3) come next. See [`docs/API.md`](docs/API.md)
+> for the full endpoint reference.
 
 ## How it works (the hybrid pipeline)
 
@@ -62,6 +64,47 @@ python -m mindbridge.cli ingest --source sample
 
 Or open `notebooks/01_matching_engine_demo.ipynb` for the full walkthrough.
 
+## Run the API (M2)
+
+The same engine is served over HTTP by a FastAPI app. Start it with the CLI:
+
+```bash
+python -m mindbridge.cli serve                 # http://127.0.0.1:8000
+python -m mindbridge.cli serve --reload        # dev mode, auto-reload on edits
+# or directly:  uvicorn mindbridge.web.app:app --reload
+```
+
+Then open **http://127.0.0.1:8000/docs** for the interactive Swagger explorer. A quick smoke test:
+
+```bash
+# Best jobs for a pasted resume (anonymous, sample source only = fast + offline)
+curl -s http://127.0.0.1:8000/match/jobs \
+  -H "Content-Type: application/json" \
+  -d '{"resume_text":"Backend engineer, 6y Python, Django, PostgreSQL, Docker, AWS","k":5,"sources":["sample"]}'
+```
+
+Endpoints at a glance (full details in [`docs/API.md`](docs/API.md)):
+
+| Method & path            | Auth      | What it does |
+|--------------------------|-----------|--------------|
+| `GET  /health`           | –         | Liveness + which embedder/reranker backends are active |
+| `POST /auth/register`    | –         | Create an account, returns a bearer token |
+| `POST /auth/login`       | –         | OAuth2 password grant (`username` = email) → token |
+| `GET  /auth/me`          | required  | Validate token / return the current user |
+| `GET  /jobs`             | –         | List jobs from the enabled sources (filter, paginate) |
+| `GET  /jobs/{job_id}`    | –         | Fetch one job, or 404 |
+| `POST /match/jobs`       | optional  | Hiree flow: resume text → best-fit jobs |
+| `POST /match/jobs/upload`| optional  | Hiree flow: upload `.txt/.md/.pdf/.docx` → best-fit jobs |
+| `POST /match/candidates` | optional  | Hirer flow: a job (id or pasted text) → best candidates |
+| `GET  /match/history`    | required  | The signed-in user's saved runs, newest first |
+
+Matching endpoints work **anonymously**; if a valid token is sent, the run is also saved to that
+user's history. Persistence is a small SQLite database (`data/mindbridge.db`, gitignored), created
+automatically on first startup.
+
+> **Tip:** the full 10k demo corpus makes server startup slow. Set `MINDBRIDGE_CORPUS_LIMIT=200`
+> (or pass `"sources":["sample"]` per request) for a fast-starting dev server.
+
 ## Data sources
 
 All three sources plug into one interface (`mindbridge/ingestion/`):
@@ -82,8 +125,10 @@ mindbridge/          core package (importable)
   features/          embeddings (+ TF-IDF fallback), structured features
   matching/          retriever, reranker, engine  ← the two-stage pipeline
   training/          label generation + reranker training
-  cli.py             typer CLI
+  web/               FastAPI backend (M2): app, routers, auth, ORM, services
+  cli.py             typer CLI (incl. `serve`)
 data/sample/         small committed demo dataset
+docs/                API reference (docs/API.md)
 notebooks/           demo notebook
 tests/               pytest suite
 ```
@@ -96,8 +141,8 @@ pytest
 
 ## Roadmap
 
-- **M1 (now):** matching engine core ✅
-- **M2:** FastAPI backend + REST API around the engine
-- **M3:** React hirer/hiree UIs, auth, resume upload, profile creation
+- **M1:** matching engine core ✅
+- **M2:** FastAPI backend + REST API around the engine ✅ (accounts, upload, match history)
+- **M3 (next):** React hirer/hiree UIs, resume upload UI, profile creation
 - **M4:** live data ingestion at scale; persistent vector store
 - **M5:** train the reranker on real outcome/satisfaction labels (the "fit" model)

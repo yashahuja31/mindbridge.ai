@@ -101,6 +101,17 @@ class ModelReranker:
 
         self.model = xgb.XGBRegressor()
         self.model.load_model(str(model_path))
+        # Guard the feature-vector contract: a model trained on a different feature layout (e.g.
+        # before a feature was added to FEATURE_NAMES) would only blow up later at predict time,
+        # crashing live scoring. Validate up front so `get_reranker` can fall back to the heuristic
+        # — that's the documented "incompatible artifact -> heuristic" behavior.
+        expected = len(model_feature_names())
+        actual = self.model.get_booster().num_features()
+        if actual != expected:
+            raise ValueError(
+                f"Reranker artifact expects {actual} features but the current layout needs "
+                f"{expected}. Retrain with `python -m mindbridge.cli train`."
+            )
 
     def score(
         self, cand: CandidateProfile, job: JobPosting, semantic_score: float
@@ -125,7 +136,7 @@ def get_reranker():
     """Prefer the trained model if its artifact exists; otherwise use the heuristic."""
     if MODEL_PATH.exists():
         try:
-            return ModelReranker()
+            return ModelReranker(MODEL_PATH)
         except Exception:
             # Corrupt/incompatible artifact or missing xgboost -> stay functional.
             return HeuristicReranker()

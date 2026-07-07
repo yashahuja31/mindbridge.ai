@@ -6,8 +6,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 MindBridge.ai is a two-sided job⇄talent matching engine. Same pipeline runs both directions:
 hirees get best-fit jobs from a resume; hirers get a ranked, *explained* candidate shortlist.
-This repo is **Milestone 1: the matching engine core** — pure Python, no web layer yet. The
-product's value is the *explanation* (`reasons` + `feature_breakdown`), not just the score.
+The product's value is the *explanation* (`reasons` + `feature_breakdown`), not just the score.
+
+**Milestone 1 (the matching engine core, pure Python) and Milestone 2 (a FastAPI backend around
+it — accounts, resume upload, saved match history) are both done.** The engine stays importable and
+web-agnostic; the web layer (`mindbridge/web/`) is a thin wrapper. Full HTTP reference lives in
+`docs/API.md`.
 
 ## Commands
 
@@ -21,6 +25,7 @@ python -m mindbridge.cli match-jobs --resume data/sample/resumes/backend_enginee
 python -m mindbridge.cli match-candidates --job-id j-002 --resumes data/sample/resumes --k 5
 python -m mindbridge.cli ingest --source sample         # inspect what a source returns
 python -m mindbridge.cli train                          # train reranker -> models/reranker.json
+python -m mindbridge.cli serve --reload                 # run the M2 API; docs at /docs
 
 pytest                                   # full suite (forced offline, TF-IDF)
 pytest tests/test_matching.py            # one file
@@ -73,6 +78,35 @@ uses a **weak label = the heuristic's own score**. Training on that just distill
 (smoke test / scaffold, not a quality gain). Real `hired`/`satisfaction` labels drop in via the
 `label` column with no other code change — that's the M5 payoff.
 
+## Web layer (M2, `mindbridge/web/`)
+
+A thin FastAPI wrapper; **all matching logic stays in the engine, reached only through
+`web/services.py`**. Keep it that way — routers validate input and delegate, nothing engine-facing
+belongs in a router. Layout:
+- `app.py` — `create_app()` factory (CORS, `lifespan` calls `init_db()`, includes routers, `/health`
+  reports `engine_info()`). Module-level `app` exists so `uvicorn mindbridge.web.app:app` and the
+  `serve` CLI command work. (This Starlette version keeps included routers as `_IncludedRouter`
+  entries in `app.routes` rather than flattening their `APIRoute`s — the endpoints are still live;
+  don't be fooled into thinking they're unmounted.)
+- `routers/` — `auth` (register/login/me), `jobs` (list/get), `match` (jobs, jobs/upload,
+  candidates, history). Matching routes use `get_optional_user`: they serve anonymous callers but
+  **persist history only when a valid token is present**.
+- `services.py` — the glue: builds `CandidateProfile`/`JobPosting` from raw text with the same
+  heuristics as the CLI, resolves jobs, runs the pipeline, saves history. Holds a **process-wide
+  singleton `MatchEngine`** (`get_engine()`).
+- `dto.py` — request models, kept **separate from engine schemas** so the API can evolve
+  independently; responses reuse `JobPosting`/`MatchResult` verbatim.
+- `security.py` — bcrypt hashing (passwords truncated to bcrypt's 72-byte limit) + HS256 JWTs.
+  `get_current_user` (401 on failure) vs `get_optional_user` (returns `None`, never raises).
+- `db.py` / `models.py` — SQLAlchemy engine + `get_db` dependency; `User` and `MatchHistory` tables.
+  Tests override `get_db` with a throwaway SQLite db and skip the lifespan, so nothing hard-codes prod.
+
+Two engine changes M2 relies on: `parsing/resume_parser.parse_resume_bytes()` (parse an upload from
+memory — text decoded directly, binary formats round-tripped through a temp file, never crashes) and
+a **feature-count guard** in `ModelReranker` — it validates the artifact's feature count against the
+current `FEATURE_NAMES` layout on load and raises so `get_reranker()` falls back to the heuristic
+instead of blowing up at predict time (the documented "incompatible artifact → heuristic" behavior).
+
 ## Conventions & gotchas
 
 - **Config**: import the `settings` singleton from `mindbridge/config.py` — one source of truth for
@@ -93,7 +127,8 @@ uses a **weak label = the heuristic's own score**. Training on that just distill
 
 ## Roadmap (context for where code is headed)
 
-M1 engine core (now) ✅ → M2 FastAPI backend around the engine → M3 React hirer/hiree UIs + auth +
-upload → M4 live ingestion at scale + persistent vector store → M5 train the reranker on real
-outcome/satisfaction labels (the "fit" model). Keep the engine importable and web-agnostic so M2
-can wrap it without refactoring.
+M1 engine core ✅ → M2 FastAPI backend around the engine ✅ (accounts, upload, match history) →
+M3 (next) React hirer/hiree UIs + upload UI + profile creation → M4 live ingestion at scale +
+persistent vector store → M5 train the reranker on real outcome/satisfaction labels (the "fit"
+model). The engine stays importable and web-agnostic — M3's frontend consumes the M2 API, and the
+`match_history` table is already the seed of M5's outcome labels.
