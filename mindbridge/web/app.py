@@ -14,7 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from mindbridge.config import settings
 from mindbridge.web.db import init_db
-from mindbridge.web.routers import auth, jobs, match
+from mindbridge.web.routers import auth, jobs, match, profile
 from mindbridge.web import services
 
 
@@ -53,6 +53,7 @@ def create_app() -> FastAPI:
     app.include_router(auth.router)
     app.include_router(jobs.router)
     app.include_router(match.router)
+    app.include_router(profile.router)
     return app
 
 

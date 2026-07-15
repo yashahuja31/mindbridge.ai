@@ -86,3 +86,80 @@ class HistoryOut(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+# ---- Profiles (hiree) ------------------------------------------------------------------------
+
+
+class ProfileIn(BaseModel):
+    """Create/update a hiree's persistent matching profile. All fields optional-ish: a bare
+    `resume_text` is enough — skills/experience are auto-extracted server-side when omitted."""
+
+    name: str = ""
+    headline: str = ""
+    skills: Optional[list[str]] = None  # None = extract from resume_text
+    years_experience: Optional[float] = Field(default=None, ge=0, le=60)
+    location: str = ""
+    open_to_remote: bool = True
+    desired_salary: Optional[float] = Field(default=None, ge=0)
+    resume_text: str = ""
+
+
+class ProfileOut(BaseModel):
+    name: str
+    headline: str
+    skills: list[str]
+    years_experience: float
+    location: str
+    open_to_remote: bool
+    desired_salary: Optional[float]
+    resume_text: str
+    updated_at: datetime
+
+
+class ProfileMatchRequest(BaseModel):
+    """Run the hiree flow from the saved profile — no resume paste needed."""
+
+    k: int = Field(default=10, ge=1, le=50)
+    sources: Optional[list[str]] = None
+
+
+# ---- Postings (hirer) ------------------------------------------------------------------------
+
+
+class PostingIn(BaseModel):
+    """Create/update one of a hirer's saved job postings."""
+
+    title: str = Field(min_length=1, max_length=300)
+    company: str = ""
+    description: str = ""
+    skills: Optional[list[str]] = None  # None = extract from description
+    min_experience: float = Field(default=0.0, ge=0, le=60)
+    max_experience: Optional[float] = Field(default=None, ge=0, le=60)
+    location: str = ""
+    remote: bool = False
+    salary_min: Optional[float] = Field(default=None, ge=0)
+    salary_max: Optional[float] = Field(default=None, ge=0)
+
+
+class PostingOut(BaseModel):
+    id: int
+    title: str
+    company: str
+    description: str
+    skills: list[str]
+    min_experience: float
+    max_experience: Optional[float]
+    location: str
+    remote: bool
+    salary_min: Optional[float]
+    salary_max: Optional[float]
+    created_at: datetime
+    updated_at: datetime
+
+
+class PostingMatchRequest(BaseModel):
+    """Run the hirer flow from a saved posting."""
+
+    k: int = Field(default=10, ge=1, le=50)
+    sources: Optional[list[str]] = None

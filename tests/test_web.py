@@ -198,3 +198,120 @@ def test_history_persists_for_authenticated_user(client):
     assert rows[0]["direction"] == "jobs"
     assert rows[0]["result_count"] >= 1
     assert isinstance(rows[0]["results"], list) and len(rows[0]["results"]) >= 1
+
+
+# ---- profile (hiree) ----------------------------------------------------------------------------
+
+
+def test_profile_requires_auth(client):
+    assert client.get("/profile").status_code == 401
+    assert client.put("/profile", json={"resume_text": RESUME}).status_code == 401
+
+
+def test_profile_404_until_created(client):
+    headers = _auth_headers(client, email="p0@example.com")
+    assert client.get("/profile", headers=headers).status_code == 404
+
+
+def test_profile_upsert_autoextracts_and_roundtrips(client):
+    headers = _auth_headers(client, email="p1@example.com")
+    # skills/experience omitted -> extracted from resume text server-side
+    r = client.put("/profile", json={"resume_text": RESUME, "name": "Dev"}, headers=headers)
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert "python" in body["skills"]
+    assert body["years_experience"] == 6.0
+
+    # second PUT updates in place (still one profile) and explicit fields win over extraction
+    r2 = client.put(
+        "/profile",
+        json={"resume_text": RESUME, "skills": ["go", "kubernetes"], "years_experience": 3},
+        headers=headers,
+    )
+    assert r2.status_code == 200
+    assert r2.json()["skills"] == ["go", "kubernetes"]
+    assert r2.json()["years_experience"] == 3.0
+
+    got = client.get("/profile", headers=headers)
+    assert got.status_code == 200
+    assert got.json()["skills"] == ["go", "kubernetes"]
+
+
+def test_profile_match_and_history(client):
+    headers = _auth_headers(client, email="p2@example.com")
+    client.put("/profile", json={"resume_text": RESUME}, headers=headers)
+
+    r = client.post("/profile/match", json={"k": 3, "sources": SAMPLE}, headers=headers)
+    assert r.status_code == 200, r.text
+    results = r.json()
+    assert 1 <= len(results) <= 3
+    assert results[0]["subject_id"].startswith("user-")
+
+    hist = client.get("/match/history", headers=headers).json()
+    assert any(row["query_summary"].startswith("Profile match") for row in hist)
+
+
+def test_empty_profile_match_rejected(client):
+    headers = _auth_headers(client, email="p3@example.com")
+    client.put("/profile", json={}, headers=headers)
+    r = client.post("/profile/match", json={"sources": SAMPLE}, headers=headers)
+    assert r.status_code == 400
+
+
+def test_profile_delete(client):
+    headers = _auth_headers(client, email="p4@example.com")
+    client.put("/profile", json={"resume_text": RESUME}, headers=headers)
+    assert client.delete("/profile", headers=headers).status_code == 204
+    assert client.get("/profile", headers=headers).status_code == 404
+
+
+# ---- postings (hirer) ---------------------------------------------------------------------------
+
+JD = "Hiring a machine learning engineer skilled in Python, PyTorch and NLP."
+
+
+def test_postings_crud_and_ownership(client):
+    hirer = _auth_headers(client, email="h1@example.com", role="hirer")
+    other = _auth_headers(client, email="h2@example.com", role="hirer")
+
+    r = client.post(
+        "/postings", json={"title": "ML Engineer", "description": JD}, headers=hirer
+    )
+    assert r.status_code == 201, r.text
+    posting = r.json()
+    assert "python" in posting["skills"]  # auto-extracted from title+description
+    pid = posting["id"]
+
+    # owner sees it; the other account does not
+    assert len(client.get("/postings", headers=hirer).json()) == 1
+    assert client.get("/postings", headers=other).json() == []
+    assert client.get(f"/postings/{pid}", headers=other).status_code == 404
+
+    # update
+    r2 = client.put(
+        f"/postings/{pid}",
+        json={"title": "Senior ML Engineer", "description": JD, "remote": True},
+        headers=hirer,
+    )
+    assert r2.status_code == 200
+    assert r2.json()["title"] == "Senior ML Engineer"
+    assert r2.json()["remote"] is True
+
+    # delete (other account can't; owner can)
+    assert client.delete(f"/postings/{pid}", headers=other).status_code == 404
+    assert client.delete(f"/postings/{pid}", headers=hirer).status_code == 204
+    assert client.get(f"/postings/{pid}", headers=hirer).status_code == 404
+
+
+def test_posting_match_and_history(client):
+    headers = _auth_headers(client, email="h3@example.com", role="hirer")
+    pid = client.post(
+        "/postings", json={"title": "ML Engineer", "description": JD}, headers=headers
+    ).json()["id"]
+
+    r = client.post(f"/postings/{pid}/match", json={"k": 3, "sources": SAMPLE}, headers=headers)
+    assert r.status_code == 200, r.text
+    assert 1 <= len(r.json()) <= 3
+
+    hist = client.get("/match/history", headers=headers).json()
+    assert any(row["direction"] == "candidates" for row in hist)
