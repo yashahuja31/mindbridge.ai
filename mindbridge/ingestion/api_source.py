@@ -26,12 +26,12 @@ class AdzunaJobSource(JobSource):
     def __init__(self) -> None:
         self.app_id = settings.adzuna_app_id
         self.app_key = settings.adzuna_app_key
-        self.country = settings.adzuna_country or "gb"
+        self.country = settings.adzuna_country or "in"
 
     def available(self) -> bool:
         return bool(self.app_id and self.app_key)
 
-    def fetch_jobs(self, query: str = "", limit: int = 50) -> list[JobPosting]:
+    def fetch_jobs(self, query: str = "", limit: int = 500) -> list[JobPosting]:
         if not self.available():
             # No keys -> stay quiet and let other sources carry the run.
             return []

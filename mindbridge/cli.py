@@ -10,6 +10,7 @@ Everything works offline against the committed sample data with no API keys.
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Optional
 
@@ -173,9 +174,19 @@ def build_corpus_cmd(
 
 @app.command("serve")
 def serve(
-    host: str = typer.Option("127.0.0.1", help="Bind host"),
-    port: int = typer.Option(8000, help="Bind port"),
-    reload: bool = typer.Option(False, "--reload", help="Auto-reload on code changes (dev)"),
+    host: str = typer.Option(
+        os.getenv("HOST", "0.0.0.0"),
+        help="Bind host",
+    ),
+    port: int = typer.Option(
+        int(os.getenv("PORT", 8000)),
+        help="Bind port",
+    ),
+    reload: bool = typer.Option(
+        False,
+        "--reload",
+        help="Auto-reload on code changes (dev)",
+    ),
 ):
     """Run the M2 FastAPI backend (uvicorn). Open http://host:port/docs for the API explorer."""
     import uvicorn
