@@ -68,3 +68,61 @@ export interface HealthInfo {
   embedder: string
   reranker: string
 }
+
+// ---- Persistent profiles & postings (M3) ---------------------------------------------------
+
+/** A hiree's saved matching profile (`GET/PUT /profile`). */
+export interface Profile {
+  name: string
+  headline: string
+  skills: string[]
+  years_experience: number
+  location: string
+  open_to_remote: boolean
+  desired_salary: number | null
+  resume_text: string
+  updated_at: string
+}
+
+/** Payload for `PUT /profile`. `skills`/`years_experience` omitted → auto-extracted server-side. */
+export interface ProfileIn {
+  name?: string
+  headline?: string
+  skills?: string[] | null
+  years_experience?: number | null
+  location?: string
+  open_to_remote?: boolean
+  desired_salary?: number | null
+  resume_text?: string
+}
+
+/** A hirer's saved job posting (`/postings`). */
+export interface Posting {
+  id: number
+  title: string
+  company: string
+  description: string
+  skills: string[]
+  min_experience: number
+  max_experience: number | null
+  location: string
+  remote: boolean
+  salary_min: number | null
+  salary_max: number | null
+  created_at: string
+  updated_at: string
+}
+
+/** Payload for `POST/PUT /postings`. `skills` omitted → auto-extracted from title+description. */
+export interface PostingIn {
+  title: string
+  company?: string
+  description?: string
+  skills?: string[] | null
+  min_experience?: number
+  max_experience?: number | null
+  location?: string
+  remote?: boolean
+  salary_min?: number | null
+  salary_max?: number | null
+}

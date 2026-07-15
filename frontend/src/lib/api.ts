@@ -11,6 +11,10 @@ import type {
   HistoryRow,
   JobPosting,
   MatchResult,
+  Posting,
+  PostingIn,
+  Profile,
+  ProfileIn,
   Role,
   Token,
   User,
@@ -172,4 +176,78 @@ export function matchCandidates(
 
 export function getHistory(token: string): Promise<HistoryRow[]> {
   return request<HistoryRow[]>('/match/history', { token })
+}
+
+// ---- Profile (hiree; all routes require auth) ---------------------------------------------
+
+export function getProfile(token: string): Promise<Profile> {
+  return request<Profile>('/profile', { token })
+}
+
+export function putProfile(data: ProfileIn, token: string): Promise<Profile> {
+  return request<Profile>('/profile', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+    token,
+  })
+}
+
+export function deleteProfile(token: string): Promise<void> {
+  return request<void>('/profile', { method: 'DELETE', token })
+}
+
+export function matchFromProfile(
+  k: number,
+  sources: string[] | null,
+  token: string,
+): Promise<MatchResult[]> {
+  return request<MatchResult[]>('/profile/match', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ k, sources }),
+    token,
+  })
+}
+
+// ---- Postings (hirer; all routes require auth) --------------------------------------------
+
+export function listPostings(token: string): Promise<Posting[]> {
+  return request<Posting[]>('/postings', { token })
+}
+
+export function createPosting(data: PostingIn, token: string): Promise<Posting> {
+  return request<Posting>('/postings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+    token,
+  })
+}
+
+export function updatePosting(id: number, data: PostingIn, token: string): Promise<Posting> {
+  return request<Posting>(`/postings/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+    token,
+  })
+}
+
+export function deletePosting(id: number, token: string): Promise<void> {
+  return request<void>(`/postings/${id}`, { method: 'DELETE', token })
+}
+
+export function matchFromPosting(
+  id: number,
+  k: number,
+  sources: string[] | null,
+  token: string,
+): Promise<MatchResult[]> {
+  return request<MatchResult[]>(`/postings/${id}/match`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ k, sources }),
+    token,
+  })
 }
