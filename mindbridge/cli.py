@@ -172,6 +172,32 @@ def build_corpus_cmd(
     )
 
 
+@app.command("warm-vectors")
+def warm_vectors(
+    sources: Optional[str] = typer.Option(None, help="Comma-separated sources (default: all available)"),
+):
+    """Pre-build the persistent stage-1 vector cache (M4) so the first server request is warm.
+
+    Encodes the current job + candidate corpora once and persists the matrices under
+    data/processed/vectors/. Safe to re-run: an up-to-date cache is a no-op.
+    """
+    from mindbridge.features.vector_store import VectorStore
+    from mindbridge.features.embeddings import get_embedder
+
+    src = sources.split(",") if sources else None
+    store = VectorStore(get_embedder(), enabled=True)
+
+    jobs = load_jobs(sources=src)
+    cands = load_candidates(sources=src)
+    console.print(f"[dim]Encoding {len(jobs)} jobs + {len(cands)} candidates "
+                  f"({store.embedder.backend})...[/dim]")
+    if jobs:
+        store.corpus_vectors([j.matchable_text() for j in jobs])
+    if cands:
+        store.corpus_vectors([c.matchable_text() for c in cands])
+    console.print("[green]Vector cache warm. Matching now skips corpus re-encoding.[/green]")
+
+
 @app.command("serve")
 def serve(
     host: str = typer.Option(

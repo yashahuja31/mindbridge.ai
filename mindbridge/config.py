@@ -15,6 +15,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = PROJECT_ROOT / "data"
 SAMPLE_DIR = DATA_DIR / "sample"
 PROCESSED_DIR = DATA_DIR / "processed"  # parsed corpus cache (parquet/jsonl), gitignored
+VECTORS_DIR = PROCESSED_DIR / "vectors"  # persisted stage-1 embeddings (M4), gitignored
 MODELS_DIR = PROJECT_ROOT / "models"
 
 # The two demo corpora (10k each) the user dropped in the repo root. Read straight from the
@@ -74,6 +75,13 @@ class Settings(BaseSettings):
     # set MINDBRIDGE_CORPUS_LIMIT=200 for a fast-starting server / test suite.
     corpus_limit: int | None = None
 
+    # --- Vector store (M4) ---
+    # Persist stage-1 corpus embeddings under data/processed/vectors/ so a warm start skips
+    # re-encoding the whole corpus. OFF for ad-hoc CLI runs by default is unnecessary — the
+    # store keys entries by (backend, corpus fingerprint), so a stale cache can never be
+    # served; disable only if you want zero disk writes (MINDBRIDGE_VECTOR_STORE=0).
+    vector_store: bool = True
+
     # --- OAuth sign-in (Google / GitHub) ---
     # A provider is enabled simply by setting its client id + secret (env: GOOGLE_CLIENT_ID,
     # GOOGLE_CLIENT_SECRET, GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET). No keys = the provider
@@ -105,6 +113,8 @@ def _load() -> Settings:
             s.corpus_limit = int(os.environ["MINDBRIDGE_CORPUS_LIMIT"])
         except ValueError:
             pass
+    if os.getenv("MINDBRIDGE_VECTOR_STORE") is not None:
+        s.vector_store = os.getenv("MINDBRIDGE_VECTOR_STORE", "1") in ("1", "true", "True")
     return s
 
 

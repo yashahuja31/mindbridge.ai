@@ -51,6 +51,33 @@ similarity (a dot product), return top-K `(index, score)` with cosine `[-1,1]` m
 `[0,1]`. K is `k × retrieve_multiplier` (default 5×) so stage 2 has room to meaningfully
 reorder.
 
+### The persistent vector store (M4)
+
+Re-encoding the corpus per request is the scaling bottleneck: a running server re-ranks the
+same 10k demo jobs on every match. `features/vector_store.py` caches corpus embedding matrices
+on disk (`data/processed/vectors/`, gitignored) keyed by **(embedder backend [+ model name],
+SHA-256 of the ordered corpus texts)** — so any change to corpus content, order, size, or the
+embedder yields a new key. *A stale cache can never be served; it just stops being hit.*
+
+- **TF-IDF is corpus-stateful**: query vectors must come from the same fitted vocabulary as
+  the cached matrix, so the fitted vectorizer is persisted next to the vectors. The store fits
+  on the corpus only and transforms queries against it (the storeless path fits jointly on
+  corpus+query — scores shift a hair, ordering doesn't; `test_query_ranks_like_direct_encode`
+  pins this). Matrices stay scipy-sparse end to end (a dense 10k×4096 float32 is ~160 MB).
+- **Transformer embeddings are stateless**: only the matrix is cached; queries encode live.
+- **Graceful degradation, as everywhere**: any cache read/write failure falls back to the
+  original joint encode inside `SemanticRetriever._similarities()` — retrieval never breaks on
+  a cache problem. Disable entirely with `MINDBRIDGE_VECTOR_STORE=0`.
+- Pre-warm before first serve with `python -m mindbridge.cli warm-vectors`. Tests disable the
+  store globally (`tests/conftest.py`) and re-enable it against `tmp_path`
+  (`tests/test_vector_store.py`).
+
+> **M6 (future):** the retriever computes similarities with a dense matmul (`matrix @ query`),
+> which is fine at demo scale but goes linear in corpus size. An approximate-nearest-neighbor
+> index (FAISS / hnswlib) drops in behind the same `SemanticRetriever._similarities()` seam,
+> reading the persisted matrices this store already writes — so M4 is deliberately the substrate
+> M6 builds on, not a throwaway.
+
 **Stage 2 — rerank + explain** (`matching/reranker.py`). Compute structured features for each
 pair, blend with the semantic score, sort, cut to `k`, and emit reasons. Two implementations
 behind `get_reranker()`:

@@ -11,6 +11,7 @@ python-dotenv>=1.0
 
 # Matching — semantic embeddings + classic ML
 scikit-learn>=1.4          # TF-IDF fallback embedder + cosine + utilities
+scipy>=1.11                # sparse matrices for the persistent vector store (M4)
 xgboost>=2.0               # stage-2 re-ranker (trained model, optional at runtime)
 # NOTE: sentence-transformers (torch) + catboost are OPTIONAL and heavy — see
 # requirements-optional.txt. The engine runs fine on the TF-IDF fallback without them.

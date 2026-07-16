@@ -47,6 +47,12 @@ stage-1 embeds). All score fields are clamped to `[0, 1]` by validators.
 **The two-stage pipeline** (`mindbridge/matching/engine.py` orchestrates):
 1. **Retriever** (`retriever.py`) — embeds query + corpus, cosine similarity (a dot product since
    vectors are L2-normalized), returns top-K `(index, score)`. Maps cosine `[-1,1]`→`[0,1]`.
+   **M4:** corpus matrices come from the persistent `VectorStore` (`features/vector_store.py`,
+   cache under `data/processed/vectors/`, keyed by backend + corpus SHA — stale entries can't be
+   served, they just miss). Any cache failure falls back to the original joint encode. TF-IDF
+   persists its fitted vectorizer beside the matrix (queries must share the corpus vocabulary)
+   and stays scipy-sparse throughout. Disable via `MINDBRIDGE_VECTOR_STORE=0`; pre-warm with
+   `python -m mindbridge.cli warm-vectors`. Tests disable it globally in `conftest.py`.
 2. **Reranker** (`reranker.py`) — blends the semantic score with structured features into a final
    score + human-readable `reasons`.
 
@@ -138,10 +144,12 @@ instead of blowing up at predict time (the documented "incompatible artifact →
 ## Roadmap (context for where code is headed)
 
 M1 engine core ✅ → M2 FastAPI backend around the engine ✅ (accounts, upload, match history) →
-M3 React hirer/hiree UI + profiles/postings + OAuth ✅ → M4 (next) live ingestion at scale +
-persistent vector store → M5 train the reranker on real outcome/satisfaction labels (the "fit"
-model). The engine stays importable and web-agnostic — the frontend consumes the M2/M3 API, and
-the `match_history` table is already the seed of M5's outcome labels.
+M3 React hirer/hiree UI + profiles/postings + OAuth ✅ → M4 (in progress) live ingestion at
+scale + persistent vector store (store ✅ — `features/vector_store.py`; live-ingestion scale-out
+remains) → M5 train the reranker on real outcome/satisfaction labels (the "fit" model) →
+M6 (future) ANN index (FAISS/hnswlib) behind the retriever seam for sub-linear stage-1 search on
+the vector-store substrate. The engine stays importable and web-agnostic — the frontend consumes
+the M2/M3 API, and the `match_history` table is already the seed of M5's outcome labels.
 
 ## Frontend (M3, `frontend/`)
 

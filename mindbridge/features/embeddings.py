@@ -44,6 +44,14 @@ class SentenceTransformerEmbedder(Embedder):
         return vecs.astype(np.float32)
 
 
+def make_tfidf_vectorizer():
+    """One place for the TF-IDF hyperparameters, shared by the embedder and the vector store
+    (the store persists a fitted vectorizer, so both must agree on the configuration)."""
+    from sklearn.feature_extraction.text import TfidfVectorizer
+
+    return TfidfVectorizer(stop_words="english", max_features=4096, ngram_range=(1, 2))
+
+
 class TfidfEmbedder(Embedder):
     """Offline fallback. Fits its vocabulary on the corpus passed to the FIRST encode() call
     (the matching engine encodes the full corpus up front), then reuses it for queries."""
@@ -51,9 +59,7 @@ class TfidfEmbedder(Embedder):
     backend = "tfidf"
 
     def __init__(self) -> None:
-        from sklearn.feature_extraction.text import TfidfVectorizer
-
-        self._vectorizer = TfidfVectorizer(stop_words="english", max_features=4096, ngram_range=(1, 2))
+        self._vectorizer = make_tfidf_vectorizer()
         self._fitted = False
 
     def encode(self, texts: list[str]) -> np.ndarray:

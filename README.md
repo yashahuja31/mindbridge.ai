@@ -187,6 +187,11 @@ pytest        # entire suite — offline, no keys, forced TF-IDF
 - **M1:** matching engine core ✅
 - **M2:** FastAPI backend + REST API around the engine ✅ (accounts, upload, match history)
 - **M3:** React hirer/hiree UI, saved profiles & postings, OAuth sign-in ✅
-- **M4:** live data ingestion at scale; persistent vector store
+- **M4:** live data ingestion at scale; persistent vector store — **store ✅** (stage-1
+  embeddings cached on disk, keyed by corpus fingerprint; pre-warm with
+  `python -m mindbridge.cli warm-vectors`); live-ingestion scale-out in progress
 - **M5:** train the reranker on real outcome/satisfaction labels (the "fit" model) —
   `match_history` is already accumulating the raw material
+- **M6 (future):** ANN-backed vector index (FAISS/hnswlib) behind the same retriever seam, so
+  stage-1 search stays sub-linear as the corpus grows past the point where a dense matmul is
+  cheap — the persistent vector store (M4) is the on-disk substrate this builds on.
