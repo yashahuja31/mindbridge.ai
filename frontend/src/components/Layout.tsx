@@ -56,6 +56,11 @@ export function Layout() {
               Match
             </NavLink>
             {user && (
+              <NavLink to="/profile" className={navLinkClass}>
+                {user.role === 'hirer' ? 'My postings' : 'My profile'}
+              </NavLink>
+            )}
+            {user && (
               <NavLink to="/history" className={navLinkClass}>
                 History
               </NavLink>

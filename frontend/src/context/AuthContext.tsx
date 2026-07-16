@@ -25,6 +25,8 @@ interface AuthState {
   loading: boolean
   login: (email: string, password: string) => Promise<User>
   register: (email: string, password: string, role: Role) => Promise<User>
+  /** Adopt a ready-made token (OAuth callback fragment); resolves to the validated user. */
+  loginWithToken: (accessToken: string) => Promise<User>
   logout: () => void
 }
 
@@ -89,6 +91,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [adopt],
   )
 
+  const loginWithToken = useCallback(
+    async (accessToken: string) => {
+      const u = await api.me(accessToken) // validate before trusting anything from a URL
+      adopt(accessToken, u)
+      return u
+    },
+    [adopt],
+  )
+
   const logout = useCallback(() => {
     localStorage.removeItem(TOKEN_KEY)
     setToken(null)
@@ -96,8 +107,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const value = useMemo<AuthState>(
-    () => ({ user, token, loading, login, register, logout }),
-    [user, token, loading, login, register, logout],
+    () => ({ user, token, loading, login, register, loginWithToken, logout }),
+    [user, token, loading, login, register, loginWithToken, logout],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

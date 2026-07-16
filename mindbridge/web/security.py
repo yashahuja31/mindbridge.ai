@@ -53,6 +53,34 @@ def create_access_token(subject: str, expires_minutes: Optional[int] = None) -> 
     return jwt.encode(payload, settings.secret_key, algorithm=_ALGORITHM)
 
 
+def create_state_token(provider: str, role: str = "hiree") -> str:
+    """Short-lived signed token that rides the OAuth round-trip as `state` (CSRF protection).
+    Purpose-tagged so it can never be replayed as an access token: its `sub` is the provider
+    name (never an int) and access-token decoding requires an int `sub`."""
+    now = datetime.now(timezone.utc)
+    payload = {
+        "sub": provider,
+        "purpose": "oauth_state",
+        "role": role,
+        "iat": now,
+        "exp": now + timedelta(minutes=10),
+    }
+    return jwt.encode(payload, settings.secret_key, algorithm=_ALGORITHM)
+
+
+def verify_state_token(token: str, provider: str) -> Optional[str]:
+    """Validate a callback's `state`; returns the role chosen at sign-in, or None if the state
+    is missing/expired/forged/for another provider."""
+    try:
+        payload = jwt.decode(token, settings.secret_key, algorithms=[_ALGORITHM])
+    except jwt.PyJWTError:
+        return None
+    if payload.get("purpose") != "oauth_state" or payload.get("sub") != provider:
+        return None
+    role = payload.get("role", "hiree")
+    return role if role in ("hiree", "hirer") else "hiree"
+
+
 def _decode_user_id(token: str) -> Optional[int]:
     try:
         payload = jwt.decode(token, settings.secret_key, algorithms=[_ALGORITHM])

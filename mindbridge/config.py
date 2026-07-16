@@ -74,6 +74,20 @@ class Settings(BaseSettings):
     # set MINDBRIDGE_CORPUS_LIMIT=200 for a fast-starting server / test suite.
     corpus_limit: int | None = None
 
+    # --- OAuth sign-in (Google / GitHub) ---
+    # A provider is enabled simply by setting its client id + secret (env: GOOGLE_CLIENT_ID,
+    # GOOGLE_CLIENT_SECRET, GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET). No keys = the provider
+    # doesn't appear in GET /auth/providers and the SPA shows no button — password auth always works.
+    google_client_id: str = ""
+    google_client_secret: str = ""
+    github_client_id: str = ""
+    github_client_secret: str = ""
+    # Where the SPA lives — OAuth callbacks redirect the browser back here with our token.
+    frontend_url: str = "http://localhost:5173"
+    # Public base URL of this API, used to build the OAuth redirect URIs registered with the
+    # provider (e.g. https://api.example.com in production).
+    api_base_url: str = "http://127.0.0.1:8000"
+
 
 def _load() -> Settings:
     """Build settings, honoring the MINDBRIDGE_-prefixed env vars used in `.env.example`."""

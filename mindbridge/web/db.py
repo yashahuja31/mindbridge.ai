@@ -41,6 +41,27 @@ def init_db() -> None:
     from mindbridge.web import models  # noqa: F401
 
     Base.metadata.create_all(bind=engine)
+    _migrate(engine)
+
+
+def _migrate(engine) -> None:
+    """Minimal in-place migrations for pre-existing dev databases. `create_all` only creates
+    missing tables, never alters existing ones — so columns added after a table shipped must be
+    back-filled here. Each step is guarded and idempotent; a fresh database is already correct."""
+    from sqlalchemy import inspect, text
+
+    inspector = inspect(engine)
+    if "users" not in inspector.get_table_names():
+        return
+    user_cols = {c["name"] for c in inspector.get_columns("users")}
+    with engine.begin() as conn:
+        if "auth_provider" not in user_cols:  # added with OAuth sign-in
+            conn.execute(
+                text(
+                    "ALTER TABLE users ADD COLUMN auth_provider "
+                    "VARCHAR(20) NOT NULL DEFAULT 'password'"
+                )
+            )
 
 
 def get_db() -> Iterator[Session]:

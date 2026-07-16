@@ -1,16 +1,18 @@
 # MindBridge.ai
 
-Two-sided job–talent matching. **Hirees** upload a resume and get their best-fit jobs; **hirers**
-upload a job description + a folder of candidate resumes and get a ranked, *explained* shortlist.
+**Two-sided job ⇄ talent matching that explains itself.**
+
+**Hirees** paste or upload a resume and get their best-fit jobs; **hirers** describe a role and
+get a ranked candidate shortlist. Every result carries a **score, human-readable reasons, and a
+feature-by-feature breakdown** — the explanation is the product, not just the number.
 
 The long-term goal is to match on more than keywords — role fit, company norms, and whether a
 person is likely to actually be happy in the role — so companies get people who stay, and people
 get jobs they don't burn out of.
 
-> **Milestones 1–2 are done.** The matching engine core (M1) is now wrapped by a **FastAPI
-> backend** (M2) that serves both matching directions over HTTP, with accounts, resume upload,
-> and saved match history. React hirer/hiree interfaces (M3) come next. See [`docs/API.md`](docs/API.md)
-> for the full endpoint reference.
+> **Milestones 1–3 are done:** the matching engine core (M1), the FastAPI backend with accounts,
+> upload, and history (M2), and the React web app with saved profiles/postings and OAuth sign-in
+> (M3). See the [roadmap](#roadmap).
 
 ## How it works (the hybrid pipeline)
 
@@ -24,125 +26,167 @@ resume / job text
   [ Stage 1: retriever ]   semantic embeddings → cosine similarity → top-K candidates
         │                  (sentence-transformers, falls back to TF-IDF offline)
         ▼
-  [ Stage 2: reranker ]    structured features (skill overlap, experience gap, location,
-        │                  salary fit) + semantic score → final score + human-readable reasons
+  [ Stage 2: reranker ]    structured features (skill overlap, role compatibility, experience
+        │                  gap, location, salary fit) + semantic score → final score + reasons
         ▼
   ranked MatchResult[]  (score in [0,1] + "why this match")
 ```
 
-Stage 2 starts as a **transparent weighted heuristic** (needs no training data). Once we collect
-outcome labels (who was hired and stayed happy), `mindbridge/training/train_reranker.py` trains an
-XGBoost/CatBoost model that the reranker loads automatically — no code change at the call site.
+The same pipeline runs both directions — the query and the corpus just swap sides. Stage 2 starts
+as a **transparent weighted heuristic** (needs no training data). Once outcome labels exist (who
+was hired and stayed happy), `mindbridge/training/train_reranker.py` trains an XGBoost model that
+the reranker loads automatically — no code change at the call site.
 
-## Setup
+## Quickstart
+
+Requires **Python 3.12+** and (for the UI) **Node 18+**. Everything below runs fully offline
+with no API keys.
 
 ```bash
+git clone <this-repo>
 cd mindbridge.ai
+
+# 1. Backend
 python -m venv .venv
-# Windows:  .venv\Scripts\activate
-# macOS/Linux:  source .venv/bin/activate
+# Windows:  .venv\Scripts\activate     macOS/Linux:  source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env          # optional — only needed for live job APIs
-```
+cp .env.example .env                   # optional — defaults work offline
 
-The first run downloads the embedding model (~90 MB). If that fails or you're offline, the engine
-automatically falls back to a TF-IDF embedder so everything still works.
-
-## Try it (offline, no API keys)
-
-```bash
-# Best jobs for a candidate's resume
+# 2. Prove the engine works — no server needed
 python -m mindbridge.cli match-jobs --resume data/sample/resumes/backend_engineer.txt --k 5
 
-# Best candidates for a job posting
-python -m mindbridge.cli match-candidates --job data/sample/jobs.csv --job-id j-002 \
-    --resumes data/sample/resumes --k 5
+# 3. Run the API  →  http://127.0.0.1:8000/docs
+python -m mindbridge.cli serve --reload
 
-# List what the enabled data sources return
-python -m mindbridge.cli ingest --source sample
+# 4. Run the UI   →  http://localhost:5173     (new terminal)
+cd frontend
+npm install
+npm run dev
 ```
 
-Or open `notebooks/01_matching_engine_demo.ipynb` for the full walkthrough.
+Paste any resume on the home page and hit **Find matching jobs** — no account needed. Create an
+account (or sign in with Google/GitHub once configured — see [docs/AUTH.md](docs/AUTH.md)) to get
+saved profiles, postings, and match history.
 
-## Run the API (M2)
+> **Embeddings:** out of the box the engine embeds with TF-IDF (fast, offline). For better
+> semantic quality, `pip install -r requirements-optional.txt` (torch, ~2.5 GB) — the engine
+> picks up sentence-transformers automatically and falls back if it ever can't load.
 
-The same engine is served over HTTP by a FastAPI app. Start it with the CLI:
+Prefer a notebook? `notebooks/01_matching_engine_demo.ipynb` walks the engine end-to-end.
+
+## The web app
+
+React + TypeScript SPA in [`frontend/`](frontend/) (Vite, Tailwind, light/dark theme):
+
+- **Match** — the core, both directions, works signed-out. Paste/upload a resume → ranked jobs;
+  paste a JD (or job id) → ranked candidates. Each result expands to its reasons + score meters.
+- **Sign in** — email/password, plus **Continue with Google / GitHub** buttons that appear
+  automatically when the backend has OAuth keys configured.
+- **My profile / My postings** — hirees keep one saved matching profile; hirers keep any number
+  of saved postings. Both get one-click matching, no re-pasting.
+- **History** — every signed-in run is saved and can be re-opened with its full ranked results.
+
+Details: [docs/FRONTEND.md](docs/FRONTEND.md).
+
+## The API
+
+Interactive docs live at **http://127.0.0.1:8000/docs** when the server is running. A quick
+smoke test:
 
 ```bash
-python -m mindbridge.cli serve                 # http://127.0.0.1:8000
-python -m mindbridge.cli serve --reload        # dev mode, auto-reload on edits
-# or directly:  uvicorn mindbridge.web.app:app --reload
-```
-
-Then open **http://127.0.0.1:8000/docs** for the interactive Swagger explorer. A quick smoke test:
-
-```bash
-# Best jobs for a pasted resume (anonymous, sample source only = fast + offline)
 curl -s http://127.0.0.1:8000/match/jobs \
   -H "Content-Type: application/json" \
   -d '{"resume_text":"Backend engineer, 6y Python, Django, PostgreSQL, Docker, AWS","k":5,"sources":["sample"]}'
 ```
 
-Endpoints at a glance (full details in [`docs/API.md`](docs/API.md)):
+Endpoints at a glance (full reference in [`docs/API.md`](docs/API.md)):
 
-| Method & path            | Auth      | What it does |
-|--------------------------|-----------|--------------|
-| `GET  /health`           | –         | Liveness + which embedder/reranker backends are active |
-| `POST /auth/register`    | –         | Create an account, returns a bearer token |
-| `POST /auth/login`       | –         | OAuth2 password grant (`username` = email) → token |
-| `GET  /auth/me`          | required  | Validate token / return the current user |
-| `GET  /jobs`             | –         | List jobs from the enabled sources (filter, paginate) |
-| `GET  /jobs/{job_id}`    | –         | Fetch one job, or 404 |
-| `POST /match/jobs`       | optional  | Hiree flow: resume text → best-fit jobs |
-| `POST /match/jobs/upload`| optional  | Hiree flow: upload `.txt/.md/.pdf/.docx` → best-fit jobs |
-| `POST /match/candidates` | optional  | Hirer flow: a job (id or pasted text) → best candidates |
-| `GET  /match/history`    | required  | The signed-in user's saved runs, newest first |
+| Method & path                  | Auth      | What it does |
+|--------------------------------|-----------|--------------|
+| `GET  /health`                 | –         | Liveness + which embedder/reranker backends are active |
+| `POST /auth/register` / `login`| –         | Email/password accounts → bearer token |
+| `GET  /auth/providers`         | –         | Which OAuth providers are configured |
+| `GET  /auth/oauth/{p}/start`   | –         | Begin Google/GitHub sign-in (browser redirect) |
+| `GET  /auth/me`                | required  | Validate token / current user |
+| `GET  /jobs`, `/jobs/{id}`     | –         | Browse jobs from the enabled sources |
+| `POST /match/jobs`             | optional  | Hiree flow: resume text → best-fit jobs |
+| `POST /match/jobs/upload`      | optional  | Same, from an uploaded `.txt/.md/.pdf/.docx` |
+| `POST /match/candidates`       | optional  | Hirer flow: a job (id or text) → best candidates |
+| `GET/PUT/DELETE /profile` + `/profile/match`    | required | Hiree's saved profile + one-click match |
+| `/postings` CRUD + `/postings/{id}/match`       | required | Hirer's saved postings + one-click match |
+| `GET  /match/history`          | required  | The signed-in user's saved runs |
 
-Matching endpoints work **anonymously**; if a valid token is sent, the run is also saved to that
-user's history. Persistence is a small SQLite database (`data/mindbridge.db`, gitignored), created
-automatically on first startup.
+Matching endpoints work **anonymously**; with a valid token the run is also saved to history.
+Persistence is a small SQLite database (`data/mindbridge.db`, gitignored), created automatically
+on first startup.
 
 > **Tip:** the full 10k demo corpus makes server startup slow. Set `MINDBRIDGE_CORPUS_LIMIT=200`
 > (or pass `"sources":["sample"]` per request) for a fast-starting dev server.
 
+## Authentication
+
+Two ways in, one token out — every path ends in the same JWT, so the rest of the API doesn't
+care how you signed in:
+
+- **Email + password** — always available, zero config. bcrypt-hashed, HS256 JWTs.
+- **OAuth (Google / GitHub)** — enabled by setting a provider's client id + secret in `.env`;
+  the SPA discovers configured providers at runtime and shows one button per provider. No keys,
+  no buttons, no attack surface.
+
+Set-up walkthroughs (including where to click in the Google/GitHub consoles) and the design
+notes (why not a hosted provider like Clerk, and how to swap one in): **[docs/AUTH.md](docs/AUTH.md)**.
+
 ## Data sources
 
-All three sources plug into one interface (`mindbridge/ingestion/`):
+All sources plug into one interface (`mindbridge/ingestion/`) and are merged + deduped at load:
 
 | Source   | Status        | Notes |
 |----------|---------------|-------|
 | `sample` | ✅ implemented | Committed demo data in `data/sample/`. Offline, no keys. |
+| `demo`   | ✅ implemented | 10k resumes + 10k JDs, read straight from committed zips; parsed once into a local cache. |
 | `api`    | ✅ implemented | Adzuna official API. Needs `ADZUNA_APP_ID` / `ADZUNA_APP_KEY` in `.env`. |
-| `scraper`| ⚠️ scaffold    | **Disabled by default.** Scraping LinkedIn/Naukri/Glassdoor violates their ToS and carries legal risk. Only exists so the architecture is complete; enable per-source at your own risk with `MINDBRIDGE_ENABLE_SCRAPER=1`. |
+| `scraper`| ⚠️ scaffold    | **Disabled by default.** Scraping LinkedIn/Naukri/Glassdoor violates their ToS and carries legal risk. Only exists so the architecture is complete; enable at your own risk with `MINDBRIDGE_ENABLE_SCRAPER=1`. |
 
 ## Layout
 
 ```
-mindbridge/          core package (importable)
-  schemas.py         JobPosting, CandidateProfile, MatchResult
+mindbridge/          core package (importable, web-agnostic)
+  schemas.py         JobPosting, CandidateProfile, MatchResult — the whole contract
   ingestion/         pluggable data sources + registry
-  parsing/           resume → text, skill extraction
+  parsing/           resume → text, skill extraction, demo-corpus markdown
   features/          embeddings (+ TF-IDF fallback), structured features
-  matching/          retriever, reranker, engine  ← the two-stage pipeline
+  matching/          retriever, reranker, taxonomy, engine  ← the two-stage pipeline
   training/          label generation + reranker training
-  web/               FastAPI backend (M2): app, routers, auth, ORM, services
+  web/               FastAPI backend: app, routers, services, ORM, JWT + OAuth
   cli.py             typer CLI (incl. `serve`)
+frontend/            React SPA (Vite, TypeScript, Tailwind)
 data/sample/         small committed demo dataset
-docs/                API reference (docs/API.md)
+docs/                architecture, API, auth, frontend guides
 notebooks/           demo notebook
-tests/               pytest suite
+tests/               pytest suite — offline, hermetic SQLite per test
 ```
+
+## Documentation
+
+| Doc | What's in it |
+|---|---|
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | The pipeline in depth, schemas, pluggability contracts, design rules |
+| [docs/API.md](docs/API.md) | Every HTTP endpoint with request/response examples |
+| [docs/AUTH.md](docs/AUTH.md) | Auth model, Google/GitHub OAuth setup step-by-step, Clerk notes |
+| [docs/FRONTEND.md](docs/FRONTEND.md) | SPA structure, dev proxy, build & deploy |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Dev setup, tests, conventions, how to extend things |
 
 ## Tests
 
 ```bash
-pytest
+pytest        # entire suite — offline, no keys, forced TF-IDF
 ```
 
 ## Roadmap
 
 - **M1:** matching engine core ✅
 - **M2:** FastAPI backend + REST API around the engine ✅ (accounts, upload, match history)
-- **M3 (next):** React hirer/hiree UIs, resume upload UI, profile creation
+- **M3:** React hirer/hiree UI, saved profiles & postings, OAuth sign-in ✅
 - **M4:** live data ingestion at scale; persistent vector store
-- **M5:** train the reranker on real outcome/satisfaction labels (the "fit" model)
+- **M5:** train the reranker on real outcome/satisfaction labels (the "fit" model) —
+  `match_history` is already accumulating the raw material

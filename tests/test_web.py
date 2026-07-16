@@ -92,6 +92,153 @@ def test_me_requires_token(client):
     assert client.get("/auth/me").status_code == 401
 
 
+# ---- OAuth (Google / GitHub) --------------------------------------------------------------------
+#
+# Fully offline: provider network calls (code exchange, email fetch) are monkeypatched. What IS
+# exercised for real: provider enablement via settings, the signed `state` round-trip, redirect
+# URL construction, find-or-create semantics, and the password/OAuth account interplay.
+
+
+@pytest.fixture
+def google_oauth(monkeypatch):
+    """Enable the google provider with fake keys and stub its two network calls."""
+    from mindbridge.config import settings
+    from mindbridge.web import oauth
+
+    monkeypatch.setattr(settings, "google_client_id", "test-client-id")
+    monkeypatch.setattr(settings, "google_client_secret", "test-secret")
+    provider = oauth.PROVIDERS["google"]
+    monkeypatch.setattr(
+        oauth.OAuthProvider, "exchange_code", lambda self, code: "prov-token" if code == "good" else None
+    )
+    object.__setattr__(provider, "fetch_email", lambda tok: "oauth-user@example.com")
+    yield provider
+    object.__setattr__(provider, "fetch_email", oauth._google_email)
+
+
+def test_providers_empty_without_keys(client, monkeypatch):
+    from mindbridge.config import settings
+
+    for field in ("google_client_id", "google_client_secret", "github_client_id", "github_client_secret"):
+        monkeypatch.setattr(settings, field, "")
+    r = client.get("/auth/providers")
+    assert r.status_code == 200
+    assert r.json() == []
+
+
+def test_unconfigured_provider_404s(client, monkeypatch):
+    from mindbridge.config import settings
+
+    monkeypatch.setattr(settings, "google_client_id", "")
+    assert client.get("/auth/oauth/google/start", follow_redirects=False).status_code == 404
+    assert client.get("/auth/oauth/nope/callback", follow_redirects=False).status_code == 404
+
+
+def test_providers_listed_when_configured(client, google_oauth):
+    r = client.get("/auth/providers")
+    assert r.status_code == 200
+    assert r.json() == [{"name": "google"}]
+
+
+def test_oauth_start_redirects_to_provider(client, google_oauth):
+    r = client.get(
+        "/auth/oauth/google/start", params={"role": "hirer"}, follow_redirects=False
+    )
+    assert r.status_code == 307
+    loc = r.headers["location"]
+    assert loc.startswith("https://accounts.google.com/o/oauth2/v2/auth?")
+    assert "client_id=test-client-id" in loc
+    assert "state=" in loc
+
+
+def _start_and_get_state(client) -> str:
+    from urllib.parse import parse_qs, urlparse
+
+    r = client.get("/auth/oauth/google/start", follow_redirects=False)
+    return parse_qs(urlparse(r.headers["location"]).query)["state"][0]
+
+
+def _fragment(resp) -> dict:
+    from urllib.parse import parse_qs, urlparse
+
+    frag = urlparse(resp.headers["location"]).fragment
+    return {k: v[0] for k, v in parse_qs(frag).items()}
+
+
+def test_oauth_callback_creates_user_and_returns_token(client, google_oauth):
+    state = _start_and_get_state(client)
+    r = client.get(
+        "/auth/oauth/google/callback",
+        params={"code": "good", "state": state},
+        follow_redirects=False,
+    )
+    assert r.status_code == 307
+    frag = _fragment(r)
+    assert "token" in frag and "error" not in frag
+
+    me = client.get("/auth/me", headers={"Authorization": f"Bearer {frag['token']}"})
+    assert me.status_code == 200
+    assert me.json()["email"] == "oauth-user@example.com"
+    assert me.json()["auth_provider"] == "google"
+
+
+def test_oauth_callback_rejects_bad_state(client, google_oauth):
+    r = client.get(
+        "/auth/oauth/google/callback",
+        params={"code": "good", "state": "forged"},
+        follow_redirects=False,
+    )
+    assert "error" in _fragment(r)
+
+
+def test_oauth_callback_handles_failed_exchange(client, google_oauth):
+    state = _start_and_get_state(client)
+    r = client.get(
+        "/auth/oauth/google/callback",
+        params={"code": "bad", "state": state},
+        follow_redirects=False,
+    )
+    assert "error" in _fragment(r)
+
+
+def test_oauth_state_is_not_an_access_token(client, google_oauth):
+    """The signed state must never work as a bearer token (purpose confusion)."""
+    state = _start_and_get_state(client)
+    assert client.get("/auth/me", headers={"Authorization": f"Bearer {state}"}).status_code == 401
+
+
+def test_oauth_login_reuses_existing_password_account(client, google_oauth):
+    _auth_headers(client, email="oauth-user@example.com", password="secret123")
+    state = _start_and_get_state(client)
+    r = client.get(
+        "/auth/oauth/google/callback",
+        params={"code": "good", "state": state},
+        follow_redirects=False,
+    )
+    token = _fragment(r)["token"]
+    me = client.get("/auth/me", headers={"Authorization": f"Bearer {token}"}).json()
+    # Same account: the pre-existing password identity is kept, not duplicated or overwritten.
+    assert me["auth_provider"] == "password"
+    login = client.post(
+        "/auth/login", data={"username": "oauth-user@example.com", "password": "secret123"}
+    )
+    assert login.status_code == 200
+
+
+def test_password_login_rejected_for_oauth_only_account(client, google_oauth):
+    state = _start_and_get_state(client)
+    client.get(
+        "/auth/oauth/google/callback",
+        params={"code": "good", "state": state},
+        follow_redirects=False,
+    )
+    r = client.post(
+        "/auth/login", data={"username": "oauth-user@example.com", "password": "whatever"}
+    )
+    assert r.status_code == 400
+    assert "Google" in r.json()["detail"]
+
+
 # ---- jobs -------------------------------------------------------------------------------------
 
 

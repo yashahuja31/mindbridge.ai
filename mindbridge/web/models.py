@@ -28,7 +28,12 @@ class User(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     email: Mapped[str] = mapped_column(String(320), unique=True, index=True, nullable=False)
-    hashed_password: Mapped[str] = mapped_column(String(200), nullable=False)
+    # NULL for accounts created via OAuth (Google/GitHub) — they have no local password and
+    # password login is rejected for them until they set one.
+    hashed_password: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    # "password", "google", or "github" — how the account was created. Informational (shown in
+    # the UI, useful for support); login is by whatever method currently works for the account.
+    auth_provider: Mapped[str] = mapped_column(String(20), default="password", nullable=False)
     # "hiree" (job seeker) or "hirer" (employer). Not enforced as an enum at the DB level so the
     # taxonomy can grow without a migration; validated at the API boundary.
     role: Mapped[str] = mapped_column(String(20), default="hiree", nullable=False)

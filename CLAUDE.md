@@ -8,10 +8,12 @@ MindBridge.ai is a two-sided job⇄talent matching engine. Same pipeline runs bo
 hirees get best-fit jobs from a resume; hirers get a ranked, *explained* candidate shortlist.
 The product's value is the *explanation* (`reasons` + `feature_breakdown`), not just the score.
 
-**Milestone 1 (the matching engine core, pure Python) and Milestone 2 (a FastAPI backend around
-it — accounts, resume upload, saved match history) are both done.** The engine stays importable and
-web-agnostic; the web layer (`mindbridge/web/`) is a thin wrapper. Full HTTP reference lives in
-`docs/API.md`.
+**Milestones 1–3 are done: the matching engine core (M1, pure Python), the FastAPI backend
+(M2 — accounts, resume upload, saved match history), and the React frontend + persistent
+profiles/postings + OAuth sign-in (M3).** The engine stays importable and web-agnostic; the web
+layer (`mindbridge/web/`) is a thin wrapper. Docs: `docs/API.md` (HTTP reference),
+`docs/ARCHITECTURE.md` (design + invariants), `docs/AUTH.md` (auth model + OAuth setup),
+`docs/FRONTEND.md` (SPA guide), `CONTRIBUTING.md` (dev workflow + extension recipes).
 
 ## Commands
 
@@ -88,9 +90,17 @@ belongs in a router. Layout:
   `serve` CLI command work. (This Starlette version keeps included routers as `_IncludedRouter`
   entries in `app.routes` rather than flattening their `APIRoute`s — the endpoints are still live;
   don't be fooled into thinking they're unmounted.)
-- `routers/` — `auth` (register/login/me), `jobs` (list/get), `match` (jobs, jobs/upload,
-  candidates, history). Matching routes use `get_optional_user`: they serve anonymous callers but
-  **persist history only when a valid token is present**.
+- `routers/` — `auth` (register/login/me + OAuth: `providers` discovery, `oauth/{p}/start`,
+  `oauth/{p}/callback`), `jobs` (list/get), `match` (jobs, jobs/upload, candidates, history),
+  `profile` (hiree profile + hirer postings CRUD + one-click match). Matching routes use
+  `get_optional_user`: they serve anonymous callers but **persist history only when a valid
+  token is present**.
+- `oauth.py` — OAuth provider registry (Google/GitHub), mirroring the ingestion-registry
+  pattern: one `PROVIDERS` dict entry per provider; a provider is live iff its client id +
+  secret are configured (`GET /auth/providers` and the SPA's buttons key off this). `state` is
+  a purpose-tagged short-lived JWT (stateless CSRF protection); account linking is by verified
+  email only; tokens return to the SPA in the URL *fragment* (`/login#token=…`). OAuth-created
+  users have `hashed_password = NULL` and password login for them returns a clear 400.
 - `services.py` — the glue: builds `CandidateProfile`/`JobPosting` from raw text with the same
   heuristics as the CLI, resolves jobs, runs the pipeline, saves history. Holds a **process-wide
   singleton `MatchEngine`** (`get_engine()`).
@@ -128,7 +138,17 @@ instead of blowing up at predict time (the documented "incompatible artifact →
 ## Roadmap (context for where code is headed)
 
 M1 engine core ✅ → M2 FastAPI backend around the engine ✅ (accounts, upload, match history) →
-M3 (next) React hirer/hiree UIs + upload UI + profile creation → M4 live ingestion at scale +
+M3 React hirer/hiree UI + profiles/postings + OAuth ✅ → M4 (next) live ingestion at scale +
 persistent vector store → M5 train the reranker on real outcome/satisfaction labels (the "fit"
-model). The engine stays importable and web-agnostic — M3's frontend consumes the M2 API, and the
-`match_history` table is already the seed of M5's outcome labels.
+model). The engine stays importable and web-agnostic — the frontend consumes the M2/M3 API, and
+the `match_history` table is already the seed of M5's outcome labels.
+
+## Frontend (M3, `frontend/`)
+
+Vite + React 18 + TypeScript + Tailwind SPA. One typed API client (`src/lib/api.ts`, all calls
+to `/api/*` — Vite dev-proxies to :8000); `src/types.ts` mirrors the backend contract and must
+move in lockstep with `dto.py`/`schemas.py`. Auth state in `src/context/AuthContext.tsx`
+(localStorage token validated against `/auth/me`; `loginWithToken` adopts OAuth fragment
+tokens). Pages: Match (both directions, anonymous-friendly), Auth (password + OAuth buttons
+from `/auth/providers`, consumes `/login#token=…`), Profile (hiree profile / hirer postings by
+role), History. Build gate: `npm run build` (tsc + Vite).

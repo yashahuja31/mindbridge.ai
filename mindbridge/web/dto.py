@@ -42,10 +42,17 @@ class Token(BaseModel):
     token_type: str = "bearer"
 
 
+class ProviderOut(BaseModel):
+    """One configured OAuth provider — the client renders a sign-in button per entry."""
+
+    name: str
+
+
 class UserOut(BaseModel):
     id: int
     email: str
     role: str
+    auth_provider: str = "password"
     created_at: datetime
 
     model_config = {"from_attributes": True}

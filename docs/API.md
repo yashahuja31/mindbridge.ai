@@ -29,11 +29,18 @@ it by field name — note there's **no** `MINDBRIDGE_` prefix on this one).
 
 ## Authentication
 
-Auth is **optional for matching** and **required for history**. It uses JWT bearer tokens
-(HS256), signed with `settings.secret_key`.
+Auth is **optional for matching** and **required for history/profiles/postings**. It uses JWT
+bearer tokens (HS256), signed with `settings.secret_key`. There are two ways to obtain a token —
+password or OAuth — and everything downstream treats them identically.
 
+**Password:**
 1. `POST /auth/register` or `POST /auth/login` returns `{ "access_token": "...", "token_type": "bearer" }`.
 2. Send it on subsequent requests as `Authorization: Bearer <token>`.
+
+**OAuth (Google / GitHub)** — browser-driven; see [`AUTH.md`](AUTH.md) for setup:
+1. `GET /auth/providers` lists the configured providers (no keys configured = empty list).
+2. Navigate the browser to `GET /auth/oauth/{provider}/start?role=hiree|hirer`.
+3. After consent, the backend redirects to `<FRONTEND_URL>/login#token=<jwt>` (or `#error=<message>`).
 
 Tokens expire after `access_token_expire_minutes` (default 24h). **Set `MINDBRIDGE_SECRET_KEY` to a
 long random value in production** — the built-in default is an obvious placeholder.
@@ -77,12 +84,35 @@ OAuth2 password grant — send **form-encoded** fields, not JSON:
 ```
 username=dev@example.com&password=secret123
 ```
-(`username` is the email.) Bad credentials → `401`. Returns a `Token`.
+(`username` is the email.) Bad credentials → `401`. An account created via OAuth has no local
+password — attempting password login for it → `400` with a "use the Google/GitHub button" message.
+Returns a `Token`.
 
 #### `GET /auth/me` → `200` *(auth required)*
 
-Returns the current user `{ id, email, role, created_at }`. Missing/invalid token → `401`. Handy as
-a token-validity probe.
+Returns the current user `{ id, email, role, auth_provider, created_at }`. Missing/invalid token
+→ `401`. Handy as a token-validity probe. `auth_provider` is `"password"`, `"google"`, or
+`"github"` — how the account was created.
+
+#### `GET /auth/providers` → `200`
+
+Which OAuth providers are configured, e.g. `[{ "name": "google" }, { "name": "github" }]`. A
+provider appears **iff** both its client id and secret are set in the environment — an empty
+list means password auth only, and the SPA renders no OAuth buttons.
+
+#### `GET /auth/oauth/{provider}/start` → `307`
+
+Begins the OAuth flow: redirects the browser to the provider's consent screen. Query param
+`role` (`hiree` default, or `hirer`) is applied **only** if this sign-in creates a new account;
+it rides inside the signed `state` token. Unknown/unconfigured provider → `404`.
+
+#### `GET /auth/oauth/{provider}/callback` → `307`
+
+The provider redirects here after consent; **clients never call this directly.** On success the
+browser is redirected to `<FRONTEND_URL>/login#token=<jwt>`; on any failure (cancelled consent,
+invalid `state`, failed code exchange, no verified email) to `<FRONTEND_URL>/login#error=<message>`.
+Account linking is by verified email: an existing account with the same email simply signs in;
+otherwise a new account is created with `auth_provider` set to the provider name.
 
 ### Jobs
 
@@ -158,15 +188,83 @@ The signed-in user's saved runs, newest first. Each row:
 ```
 No/invalid token → `401`.
 
+### Profile (hiree) *(all auth required)*
+
+A signed-in hiree keeps **one** persistent matching profile, so matching becomes one click — no
+re-pasting a resume. Skills and experience are auto-extracted from `resume_text` when omitted.
+
+#### `GET /profile` → `200`
+
+The saved profile, or `404` until one exists (the 404 is the "empty state", not an error).
+
+#### `PUT /profile` → `200`
+
+Create/update (idempotent upsert). All fields optional-ish — a bare `resume_text` is enough:
+```json
+{
+  "name": "Ada Lovelace",
+  "headline": "Senior Backend Engineer",
+  "skills": null,                    // null/omitted = auto-extract from resume_text
+  "years_experience": null,          // null/omitted = auto-extract
+  "location": "Mumbai",
+  "open_to_remote": true,
+  "desired_salary": 90000,
+  "resume_text": "Backend engineer, 6y Python..."
+}
+```
+Returns the stored `Profile` (with resolved `skills`, `years_experience`, `updated_at`).
+
+#### `DELETE /profile` → `204`
+
+#### `POST /profile/match` → `200`
+
+Run the hiree flow from the saved profile: `{ "k": 5, "sources": ["sample"] }`. The run is saved
+to history. An empty profile (no resume/headline/skills) → `400`.
+
+### Postings (hirer) *(all auth required)*
+
+A signed-in hirer keeps **many** saved job postings and can match candidates against any of them
+in one click. Skills are auto-extracted from `title` + `description` when omitted.
+
+#### `GET /postings` → `200` — the user's postings, newest first.
+
+#### `POST /postings` → `201`
+
+```json
+{
+  "title": "Machine Learning Engineer",
+  "company": "Acme Corp",
+  "description": "What the role involves...",
+  "skills": null,                    // null/omitted = auto-extract
+  "min_experience": 0, "max_experience": null,
+  "location": "Bengaluru", "remote": true,
+  "salary_min": null, "salary_max": null
+}
+```
+`title` is the only required field.
+
+#### `GET /postings/{id}` → `200` · `PUT /postings/{id}` → `200` · `DELETE /postings/{id}` → `204`
+
+Postings are owned: another user's posting id → `404`.
+
+#### `POST /postings/{id}/match` → `200`
+
+Run the hirer flow from the saved posting: `{ "k": 5, "sources": ["sample"] }`. Saved to history.
+
 ---
 
 ## Data model (persistence)
 
-Two tables, both created automatically (`mindbridge/web/models.py`):
+Four tables, all created automatically (`mindbridge/web/models.py`):
 
-- **`users`** — `id`, unique `email`, bcrypt `hashed_password`, `role`, `created_at`.
+- **`users`** — `id`, unique `email`, bcrypt `hashed_password` (NULL for OAuth-created
+  accounts), `auth_provider` (`password`/`google`/`github`), `role`, `created_at`.
 - **`match_history`** — `user_id`, `direction`, `query_summary`, `result_count`, `results_json`
   (the full ranked `MatchResult[]` serialized as JSON text), `created_at`.
+- **`profiles`** — one row per hiree (`user_id` unique): resume text + structured fields
+  (`skills_json`, `years_experience`, `location`, `open_to_remote`, `desired_salary`), `updated_at`.
+- **`postings`** — many rows per hirer: a saved `JobPosting`-shaped role (`skills_json`,
+  experience/salary bounds, `location`, `remote`), `created_at`/`updated_at`.
 
 `match_history` is also the seed of the outcome-label data **M5** will learn from: a `hired` /
 `satisfaction` column drops in here later with no other schema change.
@@ -195,6 +293,10 @@ prefix wired up manually — see the note in that file). Web-relevant ones:
 | `database_url` | `sqlite:///data/mindbridge.db` | Persistence store |
 | `cors_origins` | `localhost:5173`, `127.0.0.1:5173` | Allowed browser origins (Vite dev default, ready for the M3 React app) |
 | `MINDBRIDGE_CORPUS_LIMIT` | none | Cap jobs/candidates per source for fast startup |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | empty | Enable "Continue with Google" (see AUTH.md) |
+| `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` | empty | Enable "Continue with GitHub" (see AUTH.md) |
+| `FRONTEND_URL` | `http://localhost:5173` | Where OAuth callbacks land the browser |
+| `API_BASE_URL` | `http://127.0.0.1:8000` | Public base URL used to build OAuth redirect URIs |
 
 ## Design notes
 

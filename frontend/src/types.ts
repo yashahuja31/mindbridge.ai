@@ -6,11 +6,20 @@
 
 export type Role = 'hiree' | 'hirer'
 
+/** How the account was created; OAuth accounts have no local password. */
+export type AuthProvider = 'password' | 'google' | 'github'
+
 export interface User {
   id: number
   email: string
   role: Role
+  auth_provider: AuthProvider
   created_at: string
+}
+
+/** One configured OAuth provider from `GET /auth/providers` — render a button per entry. */
+export interface OAuthProviderInfo {
+  name: string
 }
 
 export interface Token {

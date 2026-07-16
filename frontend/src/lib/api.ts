@@ -11,6 +11,7 @@ import type {
   HistoryRow,
   JobPosting,
   MatchResult,
+  OAuthProviderInfo,
   Posting,
   PostingIn,
   Profile,
@@ -100,6 +101,21 @@ export function login(email: string, password: string): Promise<Token> {
 
 export function me(token: string): Promise<User> {
   return request<User>('/auth/me', { token })
+}
+
+// ---- OAuth --------------------------------------------------------------------------------
+
+/** Which OAuth providers the backend has keys for (empty array = password auth only). */
+export function getProviders(): Promise<OAuthProviderInfo[]> {
+  return request<OAuthProviderInfo[]>('/auth/providers')
+}
+
+/**
+ * URL that starts the OAuth flow — a full-page navigation, not a fetch: the provider's consent
+ * screen must own the tab, and the callback redirects back to `/login#token=...`.
+ */
+export function oauthStartUrl(provider: string, role: Role): string {
+  return `${BASE}/auth/oauth/${provider}/start?role=${role}`
 }
 
 // ---- Meta --------------------------------------------------------------------------------

@@ -6,6 +6,7 @@ import { Layout } from '@/components/Layout'
 import { AuthPage } from '@/pages/AuthPage'
 import { HistoryPage } from '@/pages/HistoryPage'
 import { MatchPage } from '@/pages/MatchPage'
+import { ProfilePage } from '@/pages/ProfilePage'
 import { useAuth } from '@/context/AuthContext'
 
 /** Gate a route behind auth; while the token is being validated, show a spinner (avoids a flash
@@ -30,6 +31,14 @@ export default function App() {
     <Routes>
       <Route element={<Layout />}>
         <Route index element={<MatchPage />} />
+        <Route
+          path="profile"
+          element={
+            <RequireAuth>
+              <ProfilePage />
+            </RequireAuth>
+          }
+        />
         <Route
           path="history"
           element={
