@@ -203,6 +203,7 @@ def apply_posting(posting: Posting, data: dict) -> None:
     posting.remote = bool(data.get("remote", False))
     posting.salary_min = data.get("salary_min")
     posting.salary_max = data.get("salary_max")
+    posting.apply_url = data.get("apply_url")
 
 
 def posting_to_job(posting: Posting) -> JobPosting:
@@ -220,6 +221,7 @@ def posting_to_job(posting: Posting) -> JobPosting:
         salary_min=posting.salary_min,
         salary_max=posting.salary_max,
         source="user",
+        apply_url=posting.apply_url,
         raw_text=posting.description,
     )
 
@@ -238,6 +240,7 @@ def posting_out(posting: Posting) -> dict:
         "remote": posting.remote,
         "salary_min": posting.salary_min,
         "salary_max": posting.salary_max,
+        "apply_url": posting.apply_url,
         "created_at": posting.created_at,
         "updated_at": posting.updated_at,
     }

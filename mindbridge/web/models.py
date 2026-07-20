@@ -93,6 +93,7 @@ class Posting(Base):
     remote: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     salary_min: Mapped[float | None] = mapped_column(Float, nullable=True)
     salary_max: Mapped[float | None] = mapped_column(Float, nullable=True)
+    apply_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=_utcnow, onupdate=_utcnow, nullable=False

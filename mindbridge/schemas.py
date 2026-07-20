@@ -26,7 +26,8 @@ class JobPosting(BaseModel):
     remote: bool = False
     salary_min: Optional[float] = None
     salary_max: Optional[float] = None
-    source: str = "unknown"  # sample | api | scraper | demo | user | ...
+    source: str = "unknown"  # sample | api | scraper | demo | user | real | ...
+    apply_url: Optional[str] = None  # external application / career page link
     raw_text: str = ""  # original blob, kept for embedding + debugging
 
     @field_validator("skills", "preferred_skills", mode="before")
@@ -88,6 +89,16 @@ class MatchResult(BaseModel):
     rerank_score: float = 0.0  # stage-2 score in [0, 1]
     reasons: list[str] = Field(default_factory=list)  # human-readable "why this match"
     feature_breakdown: dict[str, float] = Field(default_factory=dict)
+    
+    # Additional job metadata for direct rendering / applying in UI
+    apply_url: Optional[str] = None
+    company: Optional[str] = None
+    location: Optional[str] = None
+    description: Optional[str] = None
+    salary_min: Optional[float] = None
+    salary_max: Optional[float] = None
+    remote: Optional[bool] = None
+    skills: list[str] = Field(default_factory=list)
 
     @field_validator("score", "semantic_score", "rerank_score")
     @classmethod

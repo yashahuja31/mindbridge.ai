@@ -20,7 +20,7 @@ are persisted to history like any other signed-in run.
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 
 from mindbridge.schemas import MatchResult
@@ -69,10 +69,11 @@ def put_profile(
     return services.profile_out(profile)
 
 
-@router.delete("/profile", status_code=status.HTTP_204_NO_CONTENT)
-def delete_profile(db: Session = Depends(get_db), user: User = Depends(get_current_user)) -> None:
+@router.delete("/profile", status_code=status.HTTP_204_NO_CONTENT, response_class=Response)
+def delete_profile(db: Session = Depends(get_db), user: User = Depends(get_current_user)) -> Response:
     db.delete(_get_profile_or_404(db, user))
     db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.post("/profile/match", response_model=list[MatchResult])
@@ -156,12 +157,13 @@ def update_posting(
     return services.posting_out(posting)
 
 
-@router.delete("/postings/{posting_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/postings/{posting_id}", status_code=status.HTTP_204_NO_CONTENT, response_class=Response)
 def delete_posting(
     posting_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)
-) -> None:
+) -> Response:
     db.delete(_get_posting_or_404(db, user, posting_id))
     db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.post("/postings/{posting_id}/match", response_model=list[MatchResult])

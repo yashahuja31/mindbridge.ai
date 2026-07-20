@@ -49,12 +49,20 @@ class MatchEngine:
                 MatchResult(
                     subject_id=candidate.id,
                     matched_id=job.id,
-                    matched_label=f"{job.title} @ {job.company}".strip(" @"),
+                    matched_label=f"{job.title} @ {job.company}".strip(" @") if job.company else job.title,
                     score=rr.score,
                     semantic_score=sem,
                     rerank_score=rr.score,
                     reasons=rr.reasons,
                     feature_breakdown=rr.breakdown,
+                    apply_url=job.apply_url,
+                    company=job.company,
+                    location=job.location,
+                    description=job.description,
+                    salary_min=job.salary_min,
+                    salary_max=job.salary_max,
+                    remote=job.remote,
+                    skills=job.skills,
                 )
             )
         results.sort(key=lambda r: r.score, reverse=True)

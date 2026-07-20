@@ -147,6 +147,7 @@ class PostingIn(BaseModel):
     remote: bool = False
     salary_min: Optional[float] = Field(default=None, ge=0)
     salary_max: Optional[float] = Field(default=None, ge=0)
+    apply_url: Optional[str] = None
 
 
 class PostingOut(BaseModel):
@@ -161,6 +162,7 @@ class PostingOut(BaseModel):
     remote: bool
     salary_min: Optional[float]
     salary_max: Optional[float]
+    apply_url: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 

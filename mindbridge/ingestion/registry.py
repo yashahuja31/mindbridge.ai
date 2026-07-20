@@ -11,6 +11,7 @@ from mindbridge.config import JOBS_ZIP, RESUMES_ZIP, settings
 from mindbridge.ingestion.api_source import AdzunaJobSource
 from mindbridge.ingestion.corpus_build import corpus_cached
 from mindbridge.ingestion.demo_source import DemoJobSource, DemoResumeSource
+from mindbridge.ingestion.real_source import RealJobSource
 from mindbridge.ingestion.sample_source import SampleJobSource, SampleResumeSource
 from mindbridge.ingestion.scraper_source import ScraperJobSource
 from mindbridge.schemas import CandidateProfile, JobPosting
@@ -18,6 +19,7 @@ from mindbridge.schemas import CandidateProfile, JobPosting
 # name -> factory. Adding a new source is a one-line change here.
 _JOB_SOURCES = {
     "sample": SampleJobSource,
+    "real": RealJobSource,
     "demo": DemoJobSource,
     "api": AdzunaJobSource,
     "scraper": ScraperJobSource,
@@ -34,7 +36,7 @@ def _demo_available() -> bool:
 
 
 def _default_job_sources() -> list[str]:
-    names = ["sample"]
+    names = ["sample", "real"]
     if _demo_available():
         names.append("demo")
     if settings.adzuna_app_id and settings.adzuna_app_key:

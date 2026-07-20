@@ -70,6 +70,7 @@ class AdzunaJobSource(JobSource):
                     salary_min=item.get("salary_min"),
                     salary_max=item.get("salary_max"),
                     source=self.name,
+                    apply_url=item.get("redirect_url") or item.get("url"),
                     raw_text=desc,
                 )
             )

@@ -55,6 +55,7 @@ class SampleJobSource(JobSource):
                     salary_min=_to_float(row.get("salary_min")),
                     salary_max=_to_float(row.get("salary_max")),
                     source=self.name,
+                    apply_url=row.get("apply_url"),
                     raw_text=row.get("description", ""),
                 )
                 jobs.append(job)
