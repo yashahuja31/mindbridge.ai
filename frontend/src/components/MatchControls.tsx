@@ -16,7 +16,9 @@ import { cn } from '@/lib/utils'
 import type { MatchResult } from '@/types'
 
 export const SOURCES: { id: string; label: string; hint: string }[] = [
-  { id: 'sample', label: 'Sample', hint: 'fast · offline' },
+  { id: 'sample', label: 'Sample Jobs', hint: 'real tech roles' },
+  { id: 'real', label: 'Live Real Jobs', hint: 'live remote API' },
+  { id: 'api', label: 'Adzuna API', hint: 'global jobs' },
   { id: 'demo', label: 'Demo corpus', hint: '10k · slower' },
 ]
 

@@ -572,6 +572,7 @@ function PostingForm({
   const [skills, setSkills] = useState(initial?.skills.join(', ') ?? '')
   const [location, setLocation] = useState(initial?.location ?? '')
   const [remote, setRemote] = useState(initial?.remote ?? false)
+  const [applyUrl, setApplyUrl] = useState(initial?.apply_url ?? '')
 
   function submit(e: FormEvent) {
     e.preventDefault()
@@ -586,6 +587,7 @@ function PostingForm({
       skills: skills.trim() ? skills.split(',').map((s) => s.trim()).filter(Boolean) : null,
       location,
       remote,
+      apply_url: applyUrl.trim() || undefined,
     })
   }
 
@@ -650,6 +652,17 @@ function PostingForm({
                 placeholder="Bengaluru"
               />
             </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="po-apply">Application Link / Career URL</Label>
+            <Input
+              id="po-apply"
+              type="url"
+              value={applyUrl}
+              onChange={(e) => setApplyUrl(e.target.value)}
+              placeholder="https://company.com/careers/apply-job-123"
+            />
           </div>
 
           <label className="flex items-center gap-2 text-sm">

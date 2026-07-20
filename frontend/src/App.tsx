@@ -5,6 +5,7 @@ import type { ReactElement } from 'react'
 import { Layout } from '@/components/Layout'
 import { AuthPage } from '@/pages/AuthPage'
 import { HistoryPage } from '@/pages/HistoryPage'
+import { JobsPage } from '@/pages/JobsPage'
 import { MatchPage } from '@/pages/MatchPage'
 import { ProfilePage } from '@/pages/ProfilePage'
 import { useAuth } from '@/context/AuthContext'
@@ -31,6 +32,7 @@ export default function App() {
     <Routes>
       <Route element={<Layout />}>
         <Route index element={<MatchPage />} />
+        <Route path="jobs" element={<JobsPage />} />
         <Route
           path="profile"
           element={

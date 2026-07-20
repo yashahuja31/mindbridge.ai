@@ -28,7 +28,9 @@ import { cn } from '@/lib/utils'
 import type { HealthInfo, MatchResult } from '@/types'
 
 const SOURCES: { id: string; label: string; hint: string }[] = [
-  { id: 'sample', label: 'Sample', hint: 'fast · offline' },
+  { id: 'sample', label: 'Sample Jobs', hint: 'real tech roles' },
+  { id: 'real', label: 'Live Real Jobs', hint: 'live remote API' },
+  { id: 'api', label: 'Adzuna API', hint: 'global jobs' },
   { id: 'demo', label: 'Demo corpus', hint: '10k · slower' },
 ]
 
@@ -88,7 +90,7 @@ function HireeFlow({ token }: { token: string | null }) {
   const [resumeText, setResumeText] = useState('')
   const [file, setFile] = useState<File | null>(null)
   const [k, setK] = useState(5)
-  const [sources, setSources] = useState<string[]>(['sample'])
+  const [sources, setSources] = useState<string[]>(['sample', 'real'])
   const { results, running, run } = useMatchRunner()
 
   const canRun = file !== null || resumeText.trim().length > 0

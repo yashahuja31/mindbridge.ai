@@ -42,6 +42,7 @@ export interface JobPosting {
   salary_min: number | null
   salary_max: number | null
   source: string
+  apply_url?: string | null
   raw_text: string
 }
 
@@ -58,6 +59,14 @@ export interface MatchResult {
   rerank_score: number
   reasons: string[]
   feature_breakdown: Record<string, number>
+  apply_url?: string | null
+  company?: string | null
+  location?: string | null
+  description?: string | null
+  salary_min?: number | null
+  salary_max?: number | null
+  remote?: boolean | null
+  skills?: string[]
 }
 
 export type MatchDirection = 'jobs' | 'candidates'
@@ -118,6 +127,7 @@ export interface Posting {
   remote: boolean
   salary_min: number | null
   salary_max: number | null
+  apply_url?: string | null
   created_at: string
   updated_at: string
 }
@@ -134,4 +144,5 @@ export interface PostingIn {
   remote?: boolean
   salary_min?: number | null
   salary_max?: number | null
+  apply_url?: string | null
 }
