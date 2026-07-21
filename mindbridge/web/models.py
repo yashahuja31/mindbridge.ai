@@ -114,6 +114,9 @@ class MatchHistory(Base):
     result_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     # Full ranked MatchResult[] serialized as JSON text — portable across SQLite/Postgres.
     results_json: Mapped[str] = mapped_column(Text, default="[]", nullable=False)
+    # M5: Outcome feedback mapping item_id -> score in [0, 1] (e.g. {"j-001": 1.0, "j-002": 0.0})
+    feedback_json: Mapped[str] = mapped_column(Text, default="{}", nullable=False)
+    outcome_label: Mapped[float | None] = mapped_column(Float, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, nullable=False)
 
     user: Mapped["User"] = relationship(back_populates="history")

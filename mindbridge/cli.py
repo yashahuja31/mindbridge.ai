@@ -227,9 +227,17 @@ def train(
     scaled: bool = typer.Option(
         False, "--scaled", help="Train on the full demo corpus (honest metrics) vs. sample data"
     ),
+    from_history: bool = typer.Option(
+        False, "--from-history", help="M5: Train on real product outcome labels from MatchHistory"
+    ),
 ):
     """Train the XGBoost reranker and save models/reranker.json (+ reranker_metrics.json)."""
-    if scaled:
+    if from_history:
+        from mindbridge.training.train_reranker import train_from_history
+
+        console.print("[dim]Training reranker on real outcome/satisfaction labels from match history...[/dim]")
+        metrics = train_from_history(save=True)
+    elif scaled:
         from mindbridge.training.train_reranker import train_on_corpus
 
         console.print("[dim]Training reranker on the 10k demo corpus (proxy labels)...[/dim]")

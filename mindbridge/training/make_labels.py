@@ -47,3 +47,44 @@ def build_training_table(
 
     columns = [*FEATURE_NAMES, "semantic_score", "label"]
     return pd.DataFrame(rows, columns=columns)
+
+
+def build_training_table_from_history(db) -> pd.DataFrame:
+    """M5: Build a training table from real product outcome labels stored in MatchHistory.
+
+    Reads match runs that carry explicit user outcome labels or feedback scores.
+    """
+    import json
+    from mindbridge.web.models import MatchHistory
+
+    rows: list[dict[str, float]] = []
+    columns = [*FEATURE_NAMES, "semantic_score", "label"]
+
+    history_records = db.query(MatchHistory).all()
+    for rec in history_records:
+        outcome = rec.outcome_label
+        fb = json.loads(rec.feedback_json or "{}")
+        results = json.loads(rec.results_json or "[]")
+
+        for res in results:
+            item_id = res.get("matched_id", "")
+            # Item-specific feedback takes precedence, then overall run outcome_label
+            label = fb.get(item_id)
+            if label is None:
+                label = outcome
+            if label is None:
+                continue
+
+            bd = res.get("feature_breakdown", {})
+            sem_score = res.get("semantic_score", 0.5)
+
+            row: dict[str, float] = {}
+            for name in FEATURE_NAMES:
+                row[name] = float(bd.get(name, 0.0))
+            row["semantic_score"] = float(sem_score)
+            row["label"] = float(label)
+            rows.append(row)
+
+    if not rows:
+        return pd.DataFrame(columns=columns)
+    return pd.DataFrame(rows, columns=columns)

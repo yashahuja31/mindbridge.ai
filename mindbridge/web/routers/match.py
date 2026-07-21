@@ -28,7 +28,7 @@ from sqlalchemy.orm import Session
 from mindbridge.parsing.resume_parser import parse_resume_bytes
 from mindbridge.schemas import MatchResult
 from mindbridge.web.db import get_db
-from mindbridge.web.dto import MatchCandidatesRequest, MatchJobsRequest
+from mindbridge.web.dto import FeedbackIn, MatchCandidatesRequest, MatchJobsRequest
 from mindbridge.web.models import MatchHistory, User
 from mindbridge.web.security import get_current_user, get_optional_user
 from mindbridge.web import services
@@ -115,8 +115,37 @@ def match_history(
             "direction": r.direction,
             "query_summary": r.query_summary,
             "result_count": r.result_count,
+            "outcome_label": r.outcome_label,
+            "feedback": json.loads(r.feedback_json or "{}"),
             "created_at": r.created_at.isoformat(),
             "results": json.loads(r.results_json or "[]"),
         }
         for r in rows
     ]
+
+
+@router.post("/history/{history_id}/feedback")
+def submit_feedback(
+    history_id: int,
+    body: FeedbackIn,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> dict:
+    """M5: Record real outcome/satisfaction feedback (hired, interviewed, rating) for a match run."""
+    try:
+        record = services.record_feedback(
+            db,
+            user,
+            history_id,
+            item_id=body.item_id,
+            outcome=body.outcome,
+            score=body.score,
+        )
+        return {
+            "status": "ok",
+            "history_id": record.id,
+            "outcome_label": record.outcome_label,
+            "feedback": json.loads(record.feedback_json or "{}"),
+        }
+    except ValueError as err:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(err))

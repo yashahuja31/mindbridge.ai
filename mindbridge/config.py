@@ -7,7 +7,9 @@ Nothing here is secret by default — real keys live in `.env` (gitignored). Imp
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Repo root = two levels up from this file (mindbridge/config.py -> mindbridge/ -> repo root).
@@ -69,18 +71,39 @@ class Settings(BaseSettings):
     secret_key: str = "dev-insecure-change-me-in-production"
     access_token_expire_minutes: int = 1440  # 24h
     database_url: str = f"sqlite:///{(DATA_DIR / 'mindbridge.db').as_posix()}"
-    cors_origins: list[str] = ["http://localhost:5173", "http://127.0.0.1:5173"]
+    cors_origins: Any = ["http://localhost:5173", "http://127.0.0.1:5173"]
+
+    @field_validator("cors_origins", mode="before")
+    @classmethod
+    def _coerce_cors_origins(cls, v: Any) -> list[str]:
+        if isinstance(v, str):
+            v = v.strip()
+            if not v:
+                return ["http://localhost:5173", "http://127.0.0.1:5173"]
+            if v.startswith("[") and v.endswith("]"):
+                import json
+                try:
+                    return json.loads(v)
+                except Exception:
+                    pass
+            if v == "*":
+                return ["*"]
+            return [origin.strip().rstrip("/") for origin in v.split(",") if origin.strip()]
+        if isinstance(v, list):
+            return [str(o).strip().rstrip("/") for o in v if o]
+        return ["http://localhost:5173", "http://127.0.0.1:5173"]
 
     # Cap how many corpus docs to load (per side). None = all 10k. Handy for dev/CI:
     # set MINDBRIDGE_CORPUS_LIMIT=200 for a fast-starting server / test suite.
     corpus_limit: int | None = None
 
-    # --- Vector store (M4) ---
+    # --- Vector store (M4) & ANN Index (M6) ---
     # Persist stage-1 corpus embeddings under data/processed/vectors/ so a warm start skips
-    # re-encoding the whole corpus. OFF for ad-hoc CLI runs by default is unnecessary — the
-    # store keys entries by (backend, corpus fingerprint), so a stale cache can never be
-    # served; disable only if you want zero disk writes (MINDBRIDGE_VECTOR_STORE=0).
+    # re-encoding the whole corpus.
     vector_store: bool = True
+    ann_index: bool = True
+    ann_threshold: int = 50
+    ann_backend: str = "auto"
 
     # --- OAuth sign-in (Google / GitHub) ---
     # A provider is enabled simply by setting its client id + secret (env: GOOGLE_CLIENT_ID,
@@ -115,6 +138,28 @@ def _load() -> Settings:
             pass
     if os.getenv("MINDBRIDGE_VECTOR_STORE") is not None:
         s.vector_store = os.getenv("MINDBRIDGE_VECTOR_STORE", "1") in ("1", "true", "True")
+
+    frontend = os.getenv("FRONTEND_URL") or os.getenv("MINDBRIDGE_FRONTEND_URL")
+    if frontend:
+        s.frontend_url = frontend
+        clean_frontend = frontend.rstrip("/")
+        if clean_frontend not in s.cors_origins:
+            s.cors_origins.append(clean_frontend)
+
+    api_base = os.getenv("API_BASE_URL") or os.getenv("MINDBRIDGE_API_BASE_URL")
+    if api_base:
+        s.api_base_url = api_base
+
+    cors_env = os.getenv("CORS_ORIGINS") or os.getenv("MINDBRIDGE_CORS_ORIGINS")
+    if cors_env:
+        if cors_env.strip() == "*":
+            s.cors_origins = ["*"]
+        else:
+            for origin in cors_env.split(","):
+                clean = origin.strip().rstrip("/")
+                if clean and clean not in s.cors_origins:
+                    s.cors_origins.append(clean)
+
     return s
 
 

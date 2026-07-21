@@ -14,7 +14,10 @@ from __future__ import annotations
 from mindbridge.config import MODELS_DIR
 from mindbridge.features.structured import FEATURE_NAMES
 from mindbridge.ingestion.registry import load_candidates, load_jobs
-from mindbridge.training.make_labels import build_training_table
+from mindbridge.training.make_labels import (
+    build_training_table,
+    build_training_table_from_history,
+)
 
 MODEL_OUT = MODELS_DIR / "reranker.json"
 FEATURE_COLUMNS = [*FEATURE_NAMES, "semantic_score"]
@@ -105,6 +108,26 @@ def train_on_corpus(
     import pandas as pd
 
     table = pd.concat(subtables, ignore_index=True)
+    return _fit_and_report(table, save)
+
+
+def train_from_history(db=None, save: bool = True) -> dict[str, float]:
+    """M5: Train the XGBoost reranker on real user feedback and outcome labels from MatchHistory."""
+    if db is None:
+        from mindbridge.web.db import SessionLocal, init_db
+
+        init_db()
+        db_sess = SessionLocal()
+        try:
+            table = build_training_table_from_history(db_sess)
+        finally:
+            db_sess.close()
+    else:
+        table = build_training_table_from_history(db)
+
+    if len(table) == 0:
+        raise RuntimeError("No match history records with outcome labels found.")
+
     return _fit_and_report(table, save)
 
 

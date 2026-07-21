@@ -85,11 +85,20 @@ class MatchCandidatesRequest(BaseModel):
         return v
 
 
+class FeedbackIn(BaseModel):
+    """M5: Record real outcome / satisfaction feedback for a matched item or run."""
+
+    item_id: Optional[str] = None  # e.g. job_id or candidate_id
+    outcome: Optional[str] = None  # "hired" (1.0), "interviewed" (0.75), "shortlisted" (0.5), "rejected" (0.0)
+    score: Optional[float] = Field(default=None, ge=0.0, le=1.0)
+
+
 class HistoryOut(BaseModel):
     id: int
     direction: str
     query_summary: str
     result_count: int
+    outcome_label: Optional[float] = None
     created_at: datetime
 
     model_config = {"from_attributes": True}

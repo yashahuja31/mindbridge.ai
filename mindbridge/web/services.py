@@ -121,6 +121,48 @@ def save_history(
     return record
 
 
+OUTCOME_SCORES: dict[str, float] = {
+    "hired": 1.0,
+    "interviewed": 0.75,
+    "shortlisted": 0.50,
+    "rejected": 0.0,
+}
+
+
+def record_feedback(
+    db: Session,
+    user: User,
+    history_id: int,
+    item_id: str | None = None,
+    outcome: str | None = None,
+    score: float | None = None,
+) -> MatchHistory:
+    """Record real outcome/satisfaction feedback for a match run or specific item in history."""
+    history = (
+        db.query(MatchHistory)
+        .filter(MatchHistory.id == history_id, MatchHistory.user_id == user.id)
+        .first()
+    )
+    if history is None:
+        raise ValueError(f"No match history with id {history_id}")
+
+    target_score = score
+    if target_score is None and outcome:
+        target_score = OUTCOME_SCORES.get(outcome.strip().lower(), 0.5)
+    if target_score is None:
+        target_score = 1.0
+
+    fb = json.loads(history.feedback_json or "{}")
+    if item_id:
+        fb[item_id] = float(target_score)
+        history.feedback_json = json.dumps(fb)
+
+    history.outcome_label = float(target_score)
+    db.commit()
+    db.refresh(history)
+    return history
+
+
 # ---- Profiles & postings (persistent M3 entities) --------------------------------------------
 #
 # A `Profile` row is the persistent form of the engine's `CandidateProfile`; a `Posting` row is

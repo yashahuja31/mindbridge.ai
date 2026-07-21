@@ -14,22 +14,47 @@ from __future__ import annotations
 
 import numpy as np
 
+from mindbridge.config import settings
 from mindbridge.features.embeddings import Embedder, get_embedder
 
 
 class SemanticRetriever:
-    def __init__(self, embedder: Embedder | None = None, vector_store=None) -> None:
+    def __init__(
+        self,
+        embedder: Embedder | None = None,
+        vector_store=None,
+        use_ann: bool | None = None,
+    ) -> None:
         self.embedder = embedder or get_embedder()
         if vector_store is None:
             from mindbridge.features.vector_store import VectorStore
 
             vector_store = VectorStore(self.embedder)
         self.vector_store = vector_store
+        self.use_ann = use_ann if use_ann is not None else settings.ann_index
+        self.ann_threshold = settings.ann_threshold
 
     def rank(self, query_text: str, corpus_texts: list[str], top_k: int) -> list[tuple[int, float]]:
         """Return up to `top_k` (corpus_index, similarity in [0,1]) pairs, highest first."""
         if not corpus_texts:
             return []
+
+        # M6: Use sub-linear ANN index search if enabled and corpus size >= threshold
+        if self.use_ann and len(corpus_texts) >= self.ann_threshold:
+            try:
+                from mindbridge.matching.ann_index import ANNIndex
+
+                if self.vector_store.enabled:
+                    matrix = self.vector_store.corpus_vectors(corpus_texts)
+                    q_vec = self.vector_store.query_vector(query_text)
+                else:
+                    matrix = self.embedder.encode(corpus_texts)
+                    q_vec = self.embedder.encode([query_text])[0]
+
+                ann = ANNIndex(backend=settings.ann_backend).fit(matrix)
+                return ann.query(q_vec, top_k=top_k)
+            except Exception:
+                pass  # Fall back to dense matmul
 
         sims = self._similarities(query_text, corpus_texts)
         # Map cosine [-1,1] -> [0,1] for a consistent, explainable score.
