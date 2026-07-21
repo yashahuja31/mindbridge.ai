@@ -21,7 +21,12 @@ import type {
   User,
 } from '@/types'
 
-const BASE = import.meta.env.VITE_API_BASE ?? '/api'
+const BASE = (
+  import.meta.env.VITE_API_BASE ||
+  import.meta.env.VITE_API_BASE_URL ||
+  import.meta.env.VITE_BACKEND_URL ||
+  '/api'
+).replace(/\/$/, '')
 
 /** An error carrying the HTTP status and the server's `detail` message. */
 export class ApiError extends Error {
